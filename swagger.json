@@ -5,7 +5,7 @@
         "version": "1.0.0",
         "title": "Daily Tracker Backend API"
     },
-    "host": "TODO: add host",
+    "host": "localhost:8080",
     "basePath": "/api/v1",
     "tags": [
         {
@@ -13,12 +13,12 @@
             "description": "Topic is the category of your daily activities. You can create a topic and assign it to a daily track."
         },
         {
-            "name": "Daily Track",
+            "name": "DailyTrack",
             "description": "Manage your daily track records. Each record represents a 30-minute time period."
         }
     ],
     "schemes": [
-        "https"
+        "http"
     ],
     "paths": {
         "/topics": {
@@ -32,7 +32,7 @@
                     {
                         "name": "parent_topic_id",
                         "in": "query",
-                        "description": "Filter topics by parent topic ID. Use 'null' to get root-level topics.",
+                        "description": "Filter topics by parent topic ID.",
                         "required": false,
                         "type": "integer",
                         "format": "int64"
@@ -143,7 +143,7 @@
         },
         "/daily-tracks": {
             "get": {
-                "tags": ["Daily Track"],
+                "tags": ["DailyTrack"],
                 "summary": "Get daily track records",
                 "description": "Retrieves a list of daily track records. Supports filtering by date range and topic.",
                 "operationId": "getDailyTracks",
@@ -199,7 +199,7 @@
                 }
             },
             "post": {
-                "tags": ["Daily Track"],
+                "tags": ["DailyTrack"],
                 "summary": "Create a new daily track record",
                 "description": "Creates a new daily track record. The start_time must be at :00 or :30 minutes of an hour.",
                 "operationId": "createDailyTrack",
@@ -252,7 +252,7 @@
         },
         "/daily-tracks/{id}": {
             "get": {
-                "tags": ["Daily Track"],
+                "tags": ["DailyTrack"],
                 "summary": "Get a daily track record by ID",
                 "description": "Retrieves a single daily track record by its ID.",
                 "operationId": "getDailyTrackById",
