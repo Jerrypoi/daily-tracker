@@ -8,7 +8,7 @@ license = "Unlicense"
 edition = "2018"
 
 [features]
-default = ["client", "server"]
+default = ["client", "server", "cli"]
 client = [
     "hyper", "percent-encoding", "hyper-util/http1", "hyper-util/http2", "hyper-openssl", "hyper-tls", "native-tls", "openssl", "url"
 ]
@@ -83,6 +83,10 @@ frunk_core = { version = "0.4.3", optional = true }
 frunk-enum-derive = { version = "0.3.0", optional = true }
 frunk-enum-core = { version = "0.3.0", optional = true }
 
+env_logger = "0.11"
+
+jsonwebtoken = "9.3.1"
+
 [dev-dependencies]
 always_send = "0.1.1"
 clap = "4.5"
@@ -91,8 +95,7 @@ tokio = { version = "1.48", features = ["full"] }
 native-tls = "0.2"
 pin-project = "1.1.10"
 
-# Bearer authentication, used in examples
-jsonwebtoken = "9.3.1"
+
 
 [target.'cfg(not(any(target_os = "macos", target_os = "windows", target_os = "ios")))'.dev-dependencies]
 tokio-openssl = "0.6"
@@ -102,11 +105,17 @@ openssl = "0.10"
 name = "client"
 required-features = ["client"]
 
-[[example]]
-name = "server"
-required-features = ["server"]
+# [workspace]
+# members = [
+#   "src/server_impl",
+# ]
 
 [[bin]]
 name = "openapi_client"
 path = "bin/cli.rs"
 required-features = ["client", "cli"]
+
+[[bin]]
+name = "daily_tracker_backend"
+path = "src/server_impl/src/main.rs"
+required-features = ["server", "cli", "client"]
