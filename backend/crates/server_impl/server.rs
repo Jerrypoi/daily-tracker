@@ -88,7 +88,7 @@ pub async fn create(addr: &str, https: bool) {
             // driven forward by the runtime, eventually yielding a TCP stream.
             let (tcp_stream, addr) = listener.accept().await.expect("Failed to accept connection");
 
-            let service = service;
+            let service = service.call(addr).await.unwrap();
             let io = TokioIo::new(tcp_stream);
             // Spin up a new task in Tokio so we can continue to listen for new TCP connection on the
             // current task without waiting for the processing of the HTTP1 connection we just received

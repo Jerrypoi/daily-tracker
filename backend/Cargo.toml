@@ -21,7 +21,7 @@ openapi = { path = "crates/openapi" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_valid = { version = "0.16", optional = true }
-hyper = { version = "1.6", features = ["full"], optional = true }
+hyper = { version = "1.6", features = ["full"] }
 hyper-util = { version = "0.1.17", features = ["service"] }
 
 [workspace]
