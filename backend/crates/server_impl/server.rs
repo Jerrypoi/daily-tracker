@@ -157,7 +157,17 @@ impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
         context: &C) -> Result<CreateDailyTrackResponse, ApiError>
     {
         info!("create_daily_track({:?}) - X-Span-ID: {:?}", body, context.get().0.clone());
-        Err(ApiError("Api-Error: Operation is NOT implemented".into()))
+        
+        let data = CreateDailyTrackResponse::DailyTrackRecordCreatedSuccessfully(models::DailyTrack {
+            id: 0,
+            start_time: body.start_time,
+            topic_id: body.topic_id,
+            comment: body.comment,
+            created_at: chrono::Utc::now(),
+            updated_at:chrono::Utc::now(),
+        });
+        Ok(data)
+        // Err(ApiError("Api-Error: Operation is NOT implemented".into()))
     }
 
     /// Get daily track records
