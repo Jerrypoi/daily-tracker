@@ -19,8 +19,7 @@ pub struct CreateDailyTrackRequest {
     /// ID of the topic for this time period
     #[serde(rename = "topic_id")]
 
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub topic_id: Option<i64>,
+    pub topic_id: i64,
 
     /// Optional notes or comments
     #[serde(rename = "comment")]
@@ -33,10 +32,10 @@ pub struct CreateDailyTrackRequest {
 
 impl CreateDailyTrackRequest {
     #[allow(clippy::new_without_default)]
-    pub fn new(start_time: chrono::DateTime::<chrono::Utc>, ) -> CreateDailyTrackRequest {
+    pub fn new(start_time: chrono::DateTime::<chrono::Utc>, topic_id: i64, ) -> CreateDailyTrackRequest {
         CreateDailyTrackRequest {
             start_time,
-            topic_id: None,
+            topic_id,
             comment: None,
         }
     }
@@ -49,12 +48,8 @@ impl std::fmt::Display for CreateDailyTrackRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let params: Vec<Option<String>> = vec![
             // Skipping non-primitive type start_time in query parameter serialization
-            self.topic_id.as_ref().map(|topic_id| {
-                [
-                    "topic_id".to_string(),
-                    topic_id.to_string(),
-                ].join(",")
-            }),
+            Some("topic_id".to_string()),
+            Some(self.topic_id.to_string()),
             self.comment.as_ref().map(|comment| {
                 [
                     "comment".to_string(),
@@ -115,7 +110,7 @@ impl std::str::FromStr for CreateDailyTrackRequest {
         // Use the intermediate representation to return the struct
         std::result::Result::Ok(CreateDailyTrackRequest {
             start_time: intermediate_rep.start_time.into_iter().next().ok_or_else(|| "start_time missing in CreateDailyTrackRequest".to_string())?,
-            topic_id: intermediate_rep.topic_id.into_iter().next(),
+            topic_id: intermediate_rep.topic_id.into_iter().next().ok_or_else(|| "topic_id missing in CreateDailyTrackRequest".to_string())?,
             comment: intermediate_rep.comment.into_iter().next(),
         })
     }

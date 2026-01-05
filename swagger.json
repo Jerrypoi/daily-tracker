@@ -382,7 +382,7 @@
         },
         "CreateDailyTrackRequest": {
             "type": "object",
-            "required": ["start_time"],
+            "required": ["start_time", "topic_id"],
             "properties": {
                 "start_time": {
                     "type": "string",

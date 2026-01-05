@@ -357,6 +357,7 @@ components:
           type: string
       required:
       - start_time
+      - topic_id
       type: object
     ErrorResponse:
       example:
