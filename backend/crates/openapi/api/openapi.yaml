@@ -279,6 +279,7 @@ components:
       - created_at
       - id
       - topic_name
+      - updated_at
       type: object
     CreateTopicRequest:
       example:
@@ -332,6 +333,8 @@ components:
       - created_at
       - id
       - start_time
+      - topic_id
+      - updated_at
       type: object
     CreateDailyTrackRequest:
       example:

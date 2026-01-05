@@ -395,14 +395,12 @@ pub struct DailyTrack {
     /// Timestamp when the record was last updated
     #[serde(rename = "updated_at")]
 
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub updated_at: Option<chrono::DateTime::<chrono::Utc>>,
+    pub updated_at: chrono::DateTime::<chrono::Utc>,
 
     /// ID of the associated topic
     #[serde(rename = "topic_id")]
 
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub topic_id: Option<i64>,
+    pub topic_id: i64,
 
     /// Optional notes or comments for this time period
     #[serde(rename = "comment")]
@@ -415,13 +413,13 @@ pub struct DailyTrack {
 
 impl DailyTrack {
     #[allow(clippy::new_without_default)]
-    pub fn new(id: i64, start_time: chrono::DateTime::<chrono::Utc>, created_at: chrono::DateTime::<chrono::Utc>, ) -> DailyTrack {
+    pub fn new(id: i64, start_time: chrono::DateTime::<chrono::Utc>, created_at: chrono::DateTime::<chrono::Utc>, updated_at: chrono::DateTime::<chrono::Utc>, topic_id: i64, ) -> DailyTrack {
         DailyTrack {
             id,
             start_time,
             created_at,
-            updated_at: None,
-            topic_id: None,
+            updated_at,
+            topic_id,
             comment: None,
         }
     }
@@ -438,12 +436,8 @@ impl std::fmt::Display for DailyTrack {
             // Skipping non-primitive type start_time in query parameter serialization
             // Skipping non-primitive type created_at in query parameter serialization
             // Skipping non-primitive type updated_at in query parameter serialization
-            self.topic_id.as_ref().map(|topic_id| {
-                [
-                    "topic_id".to_string(),
-                    topic_id.to_string(),
-                ].join(",")
-            }),
+            Some("topic_id".to_string()),
+            Some(self.topic_id.to_string()),
             self.comment.as_ref().map(|comment| {
                 [
                     "comment".to_string(),
@@ -515,8 +509,8 @@ impl std::str::FromStr for DailyTrack {
             id: intermediate_rep.id.into_iter().next().ok_or_else(|| "id missing in DailyTrack".to_string())?,
             start_time: intermediate_rep.start_time.into_iter().next().ok_or_else(|| "start_time missing in DailyTrack".to_string())?,
             created_at: intermediate_rep.created_at.into_iter().next().ok_or_else(|| "created_at missing in DailyTrack".to_string())?,
-            updated_at: intermediate_rep.updated_at.into_iter().next(),
-            topic_id: intermediate_rep.topic_id.into_iter().next(),
+            updated_at: intermediate_rep.updated_at.into_iter().next().ok_or_else(|| "updated_at missing in DailyTrack".to_string())?,
+            topic_id: intermediate_rep.topic_id.into_iter().next().ok_or_else(|| "topic_id missing in DailyTrack".to_string())?,
             comment: intermediate_rep.comment.into_iter().next(),
         })
     }
@@ -791,8 +785,7 @@ pub struct Topic {
     /// Timestamp when the topic was last updated
     #[serde(rename = "updated_at")]
 
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub updated_at: Option<chrono::DateTime::<chrono::Utc>>,
+    pub updated_at: chrono::DateTime::<chrono::Utc>,
 
     /// ID of the parent topic (null for root-level topics)
     #[serde(rename = "parent_topic_id")]
@@ -805,12 +798,12 @@ pub struct Topic {
 
 impl Topic {
     #[allow(clippy::new_without_default)]
-    pub fn new(id: i64, topic_name: String, created_at: chrono::DateTime::<chrono::Utc>, ) -> Topic {
+    pub fn new(id: i64, topic_name: String, created_at: chrono::DateTime::<chrono::Utc>, updated_at: chrono::DateTime::<chrono::Utc>, ) -> Topic {
         Topic {
             id,
             topic_name,
             created_at,
-            updated_at: None,
+            updated_at,
             parent_topic_id: None,
         }
     }
@@ -896,7 +889,7 @@ impl std::str::FromStr for Topic {
             id: intermediate_rep.id.into_iter().next().ok_or_else(|| "id missing in Topic".to_string())?,
             topic_name: intermediate_rep.topic_name.into_iter().next().ok_or_else(|| "topic_name missing in Topic".to_string())?,
             created_at: intermediate_rep.created_at.into_iter().next().ok_or_else(|| "created_at missing in Topic".to_string())?,
-            updated_at: intermediate_rep.updated_at.into_iter().next(),
+            updated_at: intermediate_rep.updated_at.into_iter().next().ok_or_else(|| "updated_at missing in Topic".to_string())?,
             parent_topic_id: intermediate_rep.parent_topic_id.into_iter().next(),
         })
     }
