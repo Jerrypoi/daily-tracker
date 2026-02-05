@@ -17,6 +17,9 @@ use swagger::auth::MakeAllowAllAuthenticator;
 use swagger::EmptyContext;
 use tokio::net::TcpListener;
 
+use diesel::prelude::*;
+use db_model::establish_connection;
+
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "ios")))]
 use openssl::ssl::{Ssl, SslAcceptor, SslAcceptorBuilder, SslFiletype, SslMethod};
 
@@ -108,14 +111,17 @@ pub async fn create(addr: &str, https: bool) {
     }
 }
 
-#[derive(Copy)]
+// #[derive(Copy)]
 pub struct Server<C> {
     marker: PhantomData<C>,
+    connection: Arc<Mutex<MysqlConnection>>,
 }
 
 impl<C> Server<C> {
     pub fn new() -> Self {
-        Server{marker: PhantomData}
+        // add database connection here
+        let connection = establish_connection();
+        Server{marker: PhantomData, connection: Arc::new(Mutex::new(connection))}
     }
 }
 
@@ -123,6 +129,7 @@ impl<C> Clone for Server<C> {
     fn clone(&self) -> Self {
         Self {
             marker: PhantomData,
+            connection: self.connection.clone(),
         }
     }
 }
@@ -157,7 +164,7 @@ impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
         context: &C) -> Result<CreateDailyTrackResponse, ApiError>
     {
         info!("create_daily_track({:?}) - X-Span-ID: {:?}", body, context.get().0.clone());
-        
+        // TODO: Implement the logic to create a new daily track record
         let data = CreateDailyTrackResponse::DailyTrackRecordCreatedSuccessfully(models::DailyTrack {
             id: 0,
             start_time: body.start_time,
