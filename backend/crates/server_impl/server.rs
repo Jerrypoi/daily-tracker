@@ -19,6 +19,9 @@ use tokio::net::TcpListener;
 
 use diesel::prelude::*;
 use db_model::establish_connection;
+use db_model::models::DailyTrack;
+use db_model::schema::daily_track;
+use std::convert::TryInto;
 
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "ios")))]
 use openssl::ssl::{Ssl, SslAcceptor, SslAcceptorBuilder, SslFiletype, SslMethod};
@@ -164,17 +167,80 @@ impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
         context: &C) -> Result<CreateDailyTrackResponse, ApiError>
     {
         info!("create_daily_track({:?}) - X-Span-ID: {:?}", body, context.get().0.clone());
-        // TODO: Implement the logic to create a new daily track record
+        
+        // Convert API types to database types
+        // Convert i64 topic_id to Vec<u8> (8 bytes for UUID compatibility)
+        let topic_id_bytes = if body.topic_id != 0 {
+            Some(body.topic_id.to_le_bytes().to_vec())
+        } else {
+            None
+        };
+        
+        // Convert DateTime<Utc> to NaiveDateTime
+        let start_time_naive = body.start_time.naive_utc();
+        
+        // Lock the database connection
+        let conn = self.connection.lock()
+            .map_err(|e| ApiError(format!("Failed to lock database connection: {}", e)))?;
+        
+        // Create a new DailyTrack instance (this generates a UUID)
+        let new_track = DailyTrack::new(
+            start_time_naive,
+            topic_id_bytes,
+            body.comment.clone(),
+        );
+        
+        // Insert into database
+        diesel::insert_into(daily_track::table)
+            .values(&new_track)
+            .execute(&*conn)
+            .map_err(|e| ApiError(format!("Database error: {}", e)))?;
+        
+        // Convert database model back to API model
+        // Convert UUID (Vec<u8>) to i64 by taking first 8 bytes
+        let id_as_i64 = if new_track.id.len() >= 8 {
+            i64::from_le_bytes(
+                new_track.id[0..8].try_into()
+                    .map_err(|_| ApiError("Failed to convert UUID to i64".into()))?
+            )
+        } else {
+            return Err(ApiError("Invalid UUID format".into()));
+        };
+        
+        // Convert topic_id back from Vec<u8> to i64
+        let topic_id_as_i64 = new_track.topic_id
+            .and_then(|bytes| {
+                if bytes.len() >= 8 {
+                    Some(i64::from_le_bytes(
+                        bytes[0..8].try_into().ok()?
+                    ))
+                } else {
+                    None
+                }
+            });
+        
+        // Convert NaiveDateTime back to DateTime<Utc>
+        let created_at_utc = chrono::DateTime::<chrono::Utc>::from_utc(
+            new_track.created_at,
+            chrono::Utc
+        );
+        let updated_at_utc = new_track.updated_at
+            .map(|naive| chrono::DateTime::<chrono::Utc>::from_utc(naive, chrono::Utc));
+        let start_time_utc = chrono::DateTime::<chrono::Utc>::from_utc(
+            new_track.start_time,
+            chrono::Utc
+        );
+        
         let data = CreateDailyTrackResponse::DailyTrackRecordCreatedSuccessfully(models::DailyTrack {
-            id: 0,
-            start_time: body.start_time,
-            topic_id: body.topic_id,
-            comment: body.comment,
-            created_at: chrono::Utc::now(),
-            updated_at:chrono::Utc::now(),
+            id: id_as_i64,
+            start_time: start_time_utc,
+            topic_id: topic_id_as_i64.unwrap_or(0),
+            comment: new_track.comment,
+            created_at: created_at_utc,
+            updated_at: updated_at_utc.unwrap_or(created_at_utc),
         });
+        
         Ok(data)
-        // Err(ApiError("Api-Error: Operation is NOT implemented".into()))
     }
 
     /// Get daily track records
