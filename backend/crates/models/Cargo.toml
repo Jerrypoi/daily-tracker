@@ -10,4 +10,4 @@ path = "src/lib.rs"
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 validator = { version = "0.20", features = ["derive"] }
-
+db_model = { path = "../db_model", package = "db_model" }

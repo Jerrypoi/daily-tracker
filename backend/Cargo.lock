@@ -275,6 +275,7 @@ dependencies = [
  "logging",
  "models",
  "native-tls",
+ "once_cell",
  "pin-project",
  "serde",
  "serde_json",
@@ -1566,6 +1567,7 @@ name = "models"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "db_model",
  "serde",
  "validator",
 ]
