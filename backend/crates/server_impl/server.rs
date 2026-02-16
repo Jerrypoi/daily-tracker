@@ -10,6 +10,7 @@ use log::info;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
+use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use swagger::{Has, XSpanIdString};
@@ -178,9 +179,8 @@ impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
         
         // Convert DateTime<Utc> to NaiveDateTime
         let start_time_naive = body.start_time.naive_utc();
-        
         // Lock the database connection
-        let conn = self.connection.lock()
+        let mut conn = self.connection.lock()
             .map_err(|e| ApiError(format!("Failed to lock database connection: {}", e)))?;
         
         // Create a new DailyTrack instance (this generates a UUID)
@@ -189,12 +189,11 @@ impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
             topic_id_bytes,
             body.comment.clone(),
         );
-        
         // Insert into database
         diesel::insert_into(daily_track::table)
             .values(&new_track)
-            .execute(&*conn)
-            .map_err(|e| ApiError(format!("Database error: {}", e)))?;
+            .execute(&mut *conn).unwrap();
+            // .map_err(|e| ApiError(format!("Database error: {}", e)))?;
         
         // Convert database model back to API model
         // Convert UUID (Vec<u8>) to i64 by taking first 8 bytes
@@ -220,13 +219,13 @@ impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
             });
         
         // Convert NaiveDateTime back to DateTime<Utc>
-        let created_at_utc = chrono::DateTime::<chrono::Utc>::from_utc(
+        let created_at_utc = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
             new_track.created_at,
             chrono::Utc
         );
         let updated_at_utc = new_track.updated_at
-            .map(|naive| chrono::DateTime::<chrono::Utc>::from_utc(naive, chrono::Utc));
-        let start_time_utc = chrono::DateTime::<chrono::Utc>::from_utc(
+            .map(|naive| chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive, chrono::Utc));
+        let start_time_utc = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
             new_track.start_time,
             chrono::Utc
         );
