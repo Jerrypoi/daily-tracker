@@ -7,3 +7,8 @@ run_db:
 	docker run --name mysql -e MYSQL_ROOT_PASSWORD=MYSQL_ROOT_PASSWORD -d -p 3306:3306 mysql:8
 gen_db:
 	cd backend/crates/db_model && diesel setup && diesel migration run && cd -
+gen_swagger:
+	npx @openapitools/openapi-generator-cli generate \
+	-i swagger.json \
+	-g rust-axum \
+	-o backend/crates/openapi
