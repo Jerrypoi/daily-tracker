@@ -3,12 +3,8 @@
 
 #![allow(missing_docs)]
 
-use axum::{Json, Router, routing::get};
-use clap::{Arg, Command};
+use axum::{Router, routing::get};
 use logging::init_logging;
-use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
-use utoipa_swagger_ui::SwaggerUi;
 
 // mod server;
 mod server_auth;
@@ -38,16 +34,16 @@ async fn main() {
     // struct ApiDoc;
 
     // 4. 构建 Axum Router，将 Swagger UI 挂载到 /swagger-ui 路径
-    let mut app = Router::new();
-    register_routes(&mut app);
+    let app = register_routes();
     // // 5. 启动服务
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Swagger UI 运行在 http://localhost:3000/swagger-ui");
     axum::serve(listener, app).await.unwrap();
 }
 
-fn register_routes(app: &mut Router) {
-    // 你的实际业务路由
-    app.route("/", get(handler::get_topics));
-        // .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
+fn register_routes() -> Router {
+    let app = Router::new()
+        .route("/get-topics", get(handler::get_topics));
+        // .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+    return app;
 }

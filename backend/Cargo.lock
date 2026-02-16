@@ -273,6 +273,7 @@ dependencies = [
  "jsonwebtoken",
  "log",
  "logging",
+ "models",
  "native-tls",
  "pin-project",
  "serde",
@@ -1563,6 +1564,11 @@ dependencies = [
 [[package]]
 name = "models"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "validator",
+]
 
 [[package]]
 name = "multer"

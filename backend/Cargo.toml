@@ -24,6 +24,7 @@ headers = "0.4.0"
 log = "0.4.27"
 # openapi = { path = "crates/openapi", package = "openapi_client" }
 db_model = { path = "crates/db_model", package = "db_model" }
+models = { path = "crates/models", package = "models" }
 logging = { path = "crates/logging", package = "logging" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

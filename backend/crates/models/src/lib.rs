@@ -1,10 +1,3 @@
-pub struct GetTopicsResponse {
-    pub topics: Vec<Topic>,
-}
+pub mod topic;
+pub use topic::*;
 
-pub struct Topic {
-    pub id: i64,
-    pub name: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
