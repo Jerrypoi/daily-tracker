@@ -14,7 +14,7 @@ mod server_auth;
 async fn main() {
     env_logger::init();
 
-    let matches = Command::new("server")
+    let matches = Command::new("daily_tracker_backend")
         .arg(
             Arg::new("https")
                 .long("https")
