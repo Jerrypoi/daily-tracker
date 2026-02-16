@@ -3,7 +3,7 @@
 
 #![allow(missing_docs)]
 
-use axum::{Router, routing::get};
+use axum::{Router, routing::post};
 use logging::init_logging;
 
 // mod server;
@@ -43,7 +43,7 @@ async fn main() {
 
 fn register_routes() -> Router {
     let app = Router::new()
-        .route("/get-topics", get(handler::get_topics));
+        .route("/get-topics", post(handler::get_topics));
         // .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
     return app;
 }

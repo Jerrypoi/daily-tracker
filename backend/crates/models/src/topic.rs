@@ -28,22 +28,27 @@ pub struct Topic {
 }
 
 
+#[derive(Serialize, Deserialize)]
 pub struct BaseResponse {
     pub status_code: i32,
     pub status_message: String,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct BaseRequest {
     pub headers: HashMap<String, String>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct GetTopicsResponse {
     pub topics: Option<Vec<Topic>>,
     pub base_response: BaseResponse,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct GetTopicsRequest {
     pub parent_topic_id: Option<i64>,
+    pub base_request: BaseRequest,
 }
 
 impl BaseResponse {
