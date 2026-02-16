@@ -55,3 +55,47 @@ impl std::fmt::Display for DailyTrack {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn daily_track_new_sets_expected_fields() {
+        let start_time = Utc::now().naive_utc();
+        let topic_id = Some(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let comment = Some("test comment".to_string());
+
+        let track = DailyTrack::new(start_time, topic_id.clone(), comment.clone());
+
+        // id should be a UUID stored as 16 bytes
+        assert_eq!(track.id.len(), 16);
+
+        // simple field passthroughs
+        assert_eq!(track.start_time, start_time);
+        assert_eq!(track.topic_id, topic_id);
+        assert_eq!(track.comment, comment);
+
+        // created_at should be set to "now" (roughly) – just assert it is not the default
+        // and is >= start_time to avoid relying on exact timing.
+        assert!(track.created_at >= start_time);
+        assert!(track.updated_at.is_none());
+    }
+
+    #[test]
+    fn daily_track_display_includes_id_and_comment() {
+        let start_time = Utc::now().naive_utc();
+        let comment = Some("display test".to_string());
+        let track = DailyTrack::new(start_time, None, comment.clone());
+
+        let rendered = track.to_string();
+
+        // The string representation should at least include the start_time and comment.
+        assert!(rendered.contains(&start_time.to_string()));
+        assert!(rendered.contains(comment.as_ref().unwrap()));
+
+        // And it should contain the "id:" prefix from the Display implementation.
+        assert!(rendered.contains("id:"));
+    }
+}
+
