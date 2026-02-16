@@ -1,4 +1,4 @@
-.PHONY: gen_backend
+.PHONY: gen_backend run_db gen_db
 
 gen_backend:
 	openapi-generator generate -i swagger.json -g rust-server -o backend/crates/openapi
