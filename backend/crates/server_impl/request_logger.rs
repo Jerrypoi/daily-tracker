@@ -7,7 +7,7 @@ use axum::{
 use http_body_util::BodyExt;
 use log::{info, error};
 
-const MAX_BODY_SIZE: usize = 1024 * 1024; // 1 MB
+// const MAX_BODY_SIZE: usize = 1024 * 1024; // 1 MB
 
 pub async fn log_request(request: Request, next: Next) -> Response {
     let (parts, body) = request.into_parts();
