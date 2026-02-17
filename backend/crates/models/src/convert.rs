@@ -9,9 +9,9 @@ fn vec_u8_to_i64(bytes: &[u8]) -> i64 {
     i64::from_be_bytes(arr)
 }
 
-pub fn db_topic_to_topic(topic: db_model::models::Topic) -> Topic {
+pub fn db_topic_to_topic(topic: &db_model::models::Topic) -> Topic {
     let id = vec_u8_to_i64(&topic.id);
-    let topic_name = topic.topic_name;
+    let topic_name = topic.topic_name.clone();
     let created_at = Utc.from_utc_datetime(&topic.created_at);
     let updated_at = topic
         .updated_at
