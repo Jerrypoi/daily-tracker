@@ -262,6 +262,7 @@ dependencies = [
  "axum 0.7.9",
  "chrono",
  "clap",
+ "db",
  "db_model",
  "diesel",
  "dotenvy",
@@ -540,6 +541,15 @@ dependencies = [
  "darling_core 0.21.3",
  "quote",
  "syn 2.0.113",
+]
+
+[[package]]
+name = "db"
+version = "0.1.0"
+dependencies = [
+ "db_model",
+ "diesel",
+ "once_cell",
 ]
 
 [[package]]

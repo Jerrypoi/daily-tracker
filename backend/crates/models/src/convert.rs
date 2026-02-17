@@ -71,7 +71,7 @@ mod tests {
             parent_topic_id: Some(456i64.to_be_bytes().to_vec()),
         };
 
-        let topic = db_topic_to_topic(db_topic);
+        let topic = db_topic_to_topic(&db_topic);
 
         assert_eq!(topic.id, 123);
         assert_eq!(topic.topic_name, "working");
@@ -94,7 +94,7 @@ mod tests {
             parent_topic_id: None,
         };
 
-        let topic = db_topic_to_topic(db_topic);
+        let topic = db_topic_to_topic(&db_topic);
 
         assert_eq!(topic.updated_at, Utc.from_utc_datetime(&naive_created));
         assert_eq!(topic.parent_topic_id, None);

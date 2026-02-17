@@ -1,0 +1,10 @@
+[package]
+name = "db"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+db_model = { workspace = true }
+diesel = { workspace = true }
+once_cell = { workspace = true }
+
