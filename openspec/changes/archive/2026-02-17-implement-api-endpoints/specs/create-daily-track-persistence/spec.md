@@ -1,9 +1,4 @@
-# create-daily-track-persistence Specification
-
-## Purpose
-Persistence layer for daily track record creation, including database insertion, input validation, conflict detection, and type conversion between API and database models.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Persist Daily Track Records
 

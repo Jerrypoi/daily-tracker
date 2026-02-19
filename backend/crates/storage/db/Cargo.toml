@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+chrono = { workspace = true }
 db_model = { workspace = true }
 diesel = { workspace = true }
 once_cell = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
 

@@ -1,4 +1,5 @@
 use crate::Topic;
+use crate::daily_track::DailyTrack;
 use chrono::{TimeZone, Utc};
 use db_model;
 
@@ -20,6 +21,24 @@ pub fn db_topic_to_topic(topic: &db_model::models::Topic) -> Topic {
     let parent_topic_id = topic.parent_topic_id.as_deref().map(vec_u8_to_i64);
 
     Topic { id, topic_name, created_at, updated_at, parent_topic_id }
+}
+
+pub fn db_daily_track_to_daily_track(track: &db_model::models::DailyTrack) -> DailyTrack {
+    let id = vec_u8_to_i64(&track.id);
+    let start_time = Utc.from_utc_datetime(&track.start_time);
+    let created_at = Utc.from_utc_datetime(&track.created_at);
+    let updated_at = track
+        .updated_at
+        .map(|dt| Utc.from_utc_datetime(&dt))
+        .unwrap_or(created_at);
+    let topic_id = track
+        .topic_id
+        .as_deref()
+        .map(vec_u8_to_i64)
+        .unwrap_or(0);
+    let comment = track.comment.clone();
+
+    DailyTrack { id, start_time, created_at, updated_at, topic_id, comment }
 }
 
 #[cfg(test)]
