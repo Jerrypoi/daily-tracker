@@ -16,12 +16,16 @@ pub fn i64_to_binary(val: i64) -> Vec<u8> {
     val.to_be_bytes().to_vec()
 }
 
-pub fn get_topics(parent_topic_id: Option<i64>) -> Result<Vec<Topic>, DieselError> {
+pub fn u16_to_binary(val: u16) -> Vec<u8> {
+    val.to_be_bytes().to_vec()
+}
+
+pub fn get_topics(parent_topic_id: Option<u16>) -> Result<Vec<Topic>, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
 
     if let Some(parent_topic_id) = parent_topic_id {
         schema::topic::dsl::topic
-            .filter(schema::topic::parent_topic_id.eq(i64_to_binary(parent_topic_id)))
+            .filter(schema::topic::parent_topic_id.eq(u16_to_binary(parent_topic_id)))
             .select(Topic::as_select())
             .load(&mut *connection)
     } else {
@@ -33,7 +37,7 @@ pub fn get_topics(parent_topic_id: Option<i64>) -> Result<Vec<Topic>, DieselErro
 
 pub fn create_topic(
     topic_name: String,
-    parent_topic_id: Option<i64>,
+    parent_topic_id: Option<u16>,
 ) -> Result<Topic, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
 
@@ -52,7 +56,7 @@ pub fn create_topic(
 
     let id = Uuid::new_v4().as_bytes().to_vec();
     let now = chrono::Utc::now().naive_utc();
-    let parent_id_binary = parent_topic_id.map(i64_to_binary);
+    let parent_id_binary = parent_topic_id.map(u16_to_binary);
 
     let new_topic = Topic {
         id: id.clone(),
@@ -69,9 +73,9 @@ pub fn create_topic(
     Ok(new_topic)
 }
 
-pub fn get_topic_by_id(id: i64) -> Result<Option<Topic>, DieselError> {
+pub fn get_topic_by_id(id: u16) -> Result<Option<Topic>, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
-    let binary_id = i64_to_binary(id);
+    let binary_id = u16_to_binary(id);
 
     schema::topic::dsl::topic
         .filter(schema::topic::id.eq(binary_id))
@@ -83,7 +87,7 @@ pub fn get_topic_by_id(id: i64) -> Result<Option<Topic>, DieselError> {
 pub fn get_daily_tracks(
     start_date: Option<NaiveDate>,
     end_date: Option<NaiveDate>,
-    topic_id: Option<i64>,
+    topic_id: Option<u16>,
 ) -> Result<Vec<DailyTrack>, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
 
@@ -106,7 +110,7 @@ pub fn get_daily_tracks(
     }
 
     if let Some(tid) = topic_id {
-        query = query.filter(schema::daily_track::topic_id.eq(i64_to_binary(tid)));
+        query = query.filter(schema::daily_track::topic_id.eq(u16_to_binary(tid)));
     }
 
     query.load(&mut *connection)

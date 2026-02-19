@@ -10,21 +10,27 @@ fn vec_u8_to_i64(bytes: &[u8]) -> i64 {
     i64::from_be_bytes(arr)
 }
 
+fn vec_u8_to_u16(bytes: &[u8]) -> u16 {
+    // 
+    let arr: [u8; 2] = bytes[..2].try_into().expect("id must be at least 2 bytes");
+    u16::from_be_bytes(arr)
+}
+
 pub fn db_topic_to_topic(topic: &db_model::models::Topic) -> Topic {
-    let id = vec_u8_to_i64(&topic.id);
+    let id = vec_u8_to_u16(&topic.id);
     let topic_name = topic.topic_name.clone();
     let created_at = Utc.from_utc_datetime(&topic.created_at);
     let updated_at = topic
         .updated_at
         .map(|dt| Utc.from_utc_datetime(&dt))
         .unwrap_or(created_at);
-    let parent_topic_id = topic.parent_topic_id.as_deref().map(vec_u8_to_i64);
+    let parent_topic_id = topic.parent_topic_id.as_deref().map(vec_u8_to_u16);
 
     Topic { id, topic_name, created_at, updated_at, parent_topic_id }
 }
 
 pub fn db_daily_track_to_daily_track(track: &db_model::models::DailyTrack) -> DailyTrack {
-    let id = vec_u8_to_i64(&track.id);
+    let id = vec_u8_to_u16(&track.id);
     let start_time = Utc.from_utc_datetime(&track.start_time);
     let created_at = Utc.from_utc_datetime(&track.created_at);
     let updated_at = track
@@ -34,7 +40,7 @@ pub fn db_daily_track_to_daily_track(track: &db_model::models::DailyTrack) -> Da
     let topic_id = track
         .topic_id
         .as_deref()
-        .map(vec_u8_to_i64)
+        .map(vec_u8_to_u16)
         .unwrap_or(0);
     let comment = track.comment.clone();
 

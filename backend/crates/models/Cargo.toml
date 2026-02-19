@@ -13,3 +13,4 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
 validator = { version = "0.20", features = ["derive"] }
 db_model = { path = "../db_model", package = "db_model" }
+serde_with = { workspace = true}

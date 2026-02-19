@@ -38,7 +38,7 @@ pub async fn create_topic(
     Ok((StatusCode::CREATED, Json(db_topic_to_topic(&db_topic))))
 }
 
-pub async fn get_topic_by_id(Path(id): Path<i64>) -> Result<Json<Topic>, ApiError> {
+pub async fn get_topic_by_id(Path(id): Path<u16>) -> Result<Json<Topic>, ApiError> {
     let topic = db::get_topic_by_id(id)
         .map_err(|e| ApiError::InternalServerError(format!("Failed to retrieve topic: {}", e)))?;
 
@@ -108,7 +108,7 @@ pub async fn create_daily_track(
     }
 
     let start_time_naive = req.start_time.naive_utc();
-    let topic_id_binary = Some(db::i64_to_binary(req.topic_id));
+    let topic_id_binary = Some(db::u16_to_binary(req.topic_id));
 
     let db_track =
         db::create_daily_track(start_time_naive, topic_id_binary, req.comment).map_err(|e| {
