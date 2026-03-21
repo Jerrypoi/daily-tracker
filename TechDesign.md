@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS daily_track (
 ```
 
 ## API Design
-See 
+See `swagger.json`
 
 
 
