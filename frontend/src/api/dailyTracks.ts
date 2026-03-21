@@ -8,7 +8,7 @@ export type DailyTrackFilter = {
 
 export type DailyTrackInput = {
   startTime: string
-  topicId?: number
+  topicId: number
   comment?: string
 }
 

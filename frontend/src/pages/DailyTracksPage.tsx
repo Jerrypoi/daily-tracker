@@ -91,18 +91,19 @@ export function DailyTracksPage() {
       return
     }
 
-    setSaving(true)
-
     const parsedTopicId = topicId.trim() ? Number(topicId) : undefined
+    if (parsedTopicId === undefined || Number.isNaN(parsedTopicId)) {
+      setSaveError('topic_id is required')
+      return
+    }
+
+    setSaving(true)
     const isoStartTime = new Date(startTime).toISOString()
 
     try {
       await createDailyTrack({
         startTime: isoStartTime,
-        topicId:
-          parsedTopicId !== undefined && Number.isNaN(parsedTopicId)
-            ? undefined
-            : parsedTopicId,
+        topicId: parsedTopicId,
         comment: comment.trim() || undefined,
       })
       setStartTime('')
@@ -167,9 +168,13 @@ export function DailyTracksPage() {
           />
         </label>
         <label>
-          Topic (optional)
-          <select value={topicId} onChange={(event) => setTopicId(event.target.value)}>
-            <option value="">None</option>
+          Topic
+          <select
+            required
+            value={topicId}
+            onChange={(event) => setTopicId(event.target.value)}
+          >
+            <option value="">Select a topic</option>
             {topics.map((topic) => (
               <option key={topic.id} value={String(topic.id)}>
                 {topic.topic_name}

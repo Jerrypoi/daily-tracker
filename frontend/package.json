@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 {
   "name": "frontend",
   "private": true,
@@ -11,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "generate:api": "openapi --input ../backend/api/openapi.yaml --output src/api/generated --client fetch"
+    "generate:api": "openapi --input ../swagger.json --output src/api/generated --client fetch"
   },
   "dependencies": {
     "react": "^19.2.4",
@@ -34,4 +32,3 @@
     "vite": "^8.0.1"
   }
 }
->>>>>>> Incoming (Background Agent changes)

@@ -3,6 +3,9 @@
 gen_backend:
 	openapi-generator generate -i swagger.json -g rust-server -o backend
 
+run_backend:
+	cd backend && cargo run
+
 frontend_install:
 	npm --prefix frontend install
 

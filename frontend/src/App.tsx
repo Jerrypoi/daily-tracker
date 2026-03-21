@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 import { NavLink, Outlet } from 'react-router-dom'
 
 function App() {
@@ -28,4 +26,3 @@ function App() {
 }
 
 export default App
->>>>>>> Incoming (Background Agent changes)

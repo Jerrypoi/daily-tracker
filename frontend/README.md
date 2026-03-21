@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 # Frontend (Daily Tracker)
 
 React + TypeScript + Vite frontend for the Daily Tracker backend.
@@ -131,4 +129,3 @@ export default defineConfig([
   },
 ])
 ```
->>>>>>> Incoming (Background Agent changes)
