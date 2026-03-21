@@ -10,6 +10,14 @@ import { getErrorMessage } from '../api/errors'
 import type { DailyTrack, Topic } from '../api/generated'
 import { listTopics } from '../api/topics'
 
+function formatApiDateTime(value: unknown): string {
+  if (typeof value === 'number') {
+    // Backward compatibility: older backend serialized epoch seconds as numbers.
+    return new Date(value * 1000).toLocaleString()
+  }
+  return new Date(String(value)).toLocaleString()
+}
+
 export function DailyTracksPage() {
   const [tracks, setTracks] = useState<DailyTrack[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
@@ -204,7 +212,7 @@ export function DailyTracksPage() {
           <ul className="list">
             {tracks.map((track) => (
               <li key={track.id}>
-                <strong>{new Date(track.start_time).toLocaleString()}</strong>
+                <strong>{formatApiDateTime(track.start_time)}</strong>
                 {track.comment && <span> - {track.comment}</span>}
               </li>
             ))}
