@@ -20,24 +20,35 @@ pub fn u16_to_binary(val: u16) -> Vec<u8> {
     val.to_be_bytes().to_vec()
 }
 
+fn binary_to_u16(bytes: &[u8]) -> Option<u16> {
+    if bytes.len() < 2 {
+        return None;
+    }
+    Some(u16::from_be_bytes([bytes[0], bytes[1]]))
+}
+
 pub fn get_topics(parent_topic_id: Option<u16>) -> Result<Vec<Topic>, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
+    let mut topics: Vec<Topic> = schema::topic::dsl::topic
+        .select(Topic::as_select())
+        .load(&mut *connection)?;
 
-    if let Some(parent_topic_id) = parent_topic_id {
-        schema::topic::dsl::topic
-            .filter(schema::topic::parent_topic_id.eq(u16_to_binary(parent_topic_id)))
-            .select(Topic::as_select())
-            .load(&mut *connection)
-    } else {
-        schema::topic::dsl::topic
-            .select(Topic::as_select())
-            .load(&mut *connection)
+    if let Some(parent_id) = parent_topic_id {
+        topics.retain(|t| {
+            t.parent_topic_id
+                .as_deref()
+                .and_then(binary_to_u16)
+                .map(|pid| pid == parent_id)
+                .unwrap_or(false)
+        });
     }
+
+    Ok(topics)
 }
 
 pub fn create_topic(
     topic_name: String,
-    parent_topic_id: Option<u16>,
+    parent_topic_id: Option<Vec<u8>>,
 ) -> Result<Topic, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
 
@@ -56,14 +67,13 @@ pub fn create_topic(
 
     let id = Uuid::new_v4().as_bytes().to_vec();
     let now = chrono::Utc::now().naive_utc();
-    let parent_id_binary = parent_topic_id.map(u16_to_binary);
 
     let new_topic = Topic {
         id: id.clone(),
         topic_name,
         created_at: now,
         updated_at: None,
-        parent_topic_id: parent_id_binary,
+        parent_topic_id,
     };
 
     diesel::insert_into(schema::topic::table)
@@ -75,13 +85,13 @@ pub fn create_topic(
 
 pub fn get_topic_by_id(id: u16) -> Result<Option<Topic>, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
-    let binary_id = u16_to_binary(id);
-
-    schema::topic::dsl::topic
-        .filter(schema::topic::id.eq(binary_id))
+    let topics: Vec<Topic> = schema::topic::dsl::topic
         .select(Topic::as_select())
-        .first(&mut *connection)
-        .optional()
+        .load(&mut *connection)?;
+
+    Ok(topics.into_iter().find(|t| {
+        binary_to_u16(&t.id).map(|public_id| public_id == id).unwrap_or(false)
+    }))
 }
 
 pub fn get_daily_tracks(
@@ -109,11 +119,20 @@ pub fn get_daily_tracks(
         query = query.filter(schema::daily_track::start_time.le(end_dt));
     }
 
-    if let Some(tid) = topic_id {
-        query = query.filter(schema::daily_track::topic_id.eq(u16_to_binary(tid)));
+    if topic_id.is_some() {
+        query = query.filter(schema::daily_track::topic_id.is_not_null());
     }
-
-    query.load(&mut *connection)
+    let mut tracks: Vec<DailyTrack> = query.load(&mut *connection)?;
+    if let Some(tid) = topic_id {
+        tracks.retain(|t| {
+            t.topic_id
+                .as_deref()
+                .and_then(binary_to_u16)
+                .map(|id| id == tid)
+                .unwrap_or(false)
+        });
+    }
+    Ok(tracks)
 }
 
 pub fn create_daily_track(

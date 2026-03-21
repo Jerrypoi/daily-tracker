@@ -25,7 +25,18 @@ pub async fn create_topic(
         ));
     }
 
-    let db_topic = db::create_topic(req.topic_name, req.parent_topic_id).map_err(|e| {
+    let parent_topic_id_binary = if let Some(parent_id) = req.parent_topic_id {
+        let parent = db::get_topic_by_id(parent_id)
+            .map_err(|e| ApiError::InternalServerError(format!("Failed to verify parent topic: {}", e)))?;
+        let parent = parent.ok_or_else(|| {
+            ApiError::NotFound(format!("Parent topic with id {} not found", parent_id))
+        })?;
+        Some(parent.id)
+    } else {
+        None
+    };
+
+    let db_topic = db::create_topic(req.topic_name, parent_topic_id_binary).map_err(|e| {
         match e {
             diesel::result::Error::DatabaseError(
                 diesel::result::DatabaseErrorKind::UniqueViolation,
@@ -108,7 +119,7 @@ pub async fn create_daily_track(
     }
 
     let start_time_naive = req.start_time.naive_utc();
-    let topic_id_binary = Some(db::u16_to_binary(req.topic_id));
+    let topic_id_binary = topic.map(|t| t.id);
 
     let db_track =
         db::create_daily_track(start_time_naive, topic_id_binary, req.comment).map_err(|e| {

@@ -204,11 +204,7 @@ export function DailyTracksPage() {
           <ul className="list">
             {tracks.map((track) => (
               <li key={track.id}>
-                <strong>{new Date(track.start_time).toLocaleString()}</strong> (id:{' '}
-                {track.id})
-                {track.topic_id !== undefined && track.topic_id !== null && (
-                  <span> - topic: {track.topic_id}</span>
-                )}
+                <strong>{new Date(track.start_time).toLocaleString()}</strong>
                 {track.comment && <span> - {track.comment}</span>}
               </li>
             ))}

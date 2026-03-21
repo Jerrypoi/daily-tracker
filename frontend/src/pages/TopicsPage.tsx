@@ -37,17 +37,12 @@ export function TopicsPage() {
     setSaveError(null)
     setSaving(true)
 
-    const parsedParentTopicId = parentTopicId.trim()
-      ? Number(parentTopicId)
-      : undefined
+    const parsedParentTopicId = parentTopicId ? Number(parentTopicId) : undefined
 
     try {
       await createTopic({
         topicName: topicName.trim(),
-        parentTopicId:
-          parsedParentTopicId !== undefined && Number.isNaN(parsedParentTopicId)
-            ? undefined
-            : parsedParentTopicId,
+        parentTopicId: parsedParentTopicId,
       })
       setTopicName('')
       setParentTopicId('')
@@ -74,13 +69,18 @@ export function TopicsPage() {
           />
         </label>
         <label>
-          Parent Topic ID (optional)
-          <input
+          Parent Topic (optional)
+          <select
             value={parentTopicId}
             onChange={(event) => setParentTopicId(event.target.value)}
-            placeholder="1"
-            inputMode="numeric"
-          />
+          >
+            <option value="">None</option>
+            {topics.map((topic) => (
+              <option key={topic.id} value={String(topic.id)}>
+                {topic.topic_name}
+              </option>
+            ))}
+          </select>
         </label>
         <button type="submit" disabled={saving}>
           {saving ? 'Saving...' : 'Create Topic'}
@@ -96,11 +96,7 @@ export function TopicsPage() {
           <ul className="list">
             {topics.map((topic) => (
               <li key={topic.id}>
-                <strong>{topic.topic_name}</strong> (id: {topic.id})
-                {topic.parent_topic_id !== undefined &&
-                  topic.parent_topic_id !== null && (
-                    <span> - parent: {topic.parent_topic_id}</span>
-                  )}
+                <strong>{topic.topic_name}</strong>
               </li>
             ))}
             {topics.length === 0 && <li>No topics yet.</li>}
