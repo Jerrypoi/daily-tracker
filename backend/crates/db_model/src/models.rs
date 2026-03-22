@@ -3,6 +3,7 @@ use chrono::NaiveDateTime;
 use chrono::Utc;
 use uuid::Uuid;
 
+pub const DEFAULT_TOPIC_DISPLAY_COLOR: &str = "#3b82f6";
 
 
 
@@ -12,6 +13,7 @@ use uuid::Uuid;
 pub struct Topic {
     pub id: Vec<u8>,
     pub topic_name: String,
+    pub display_color: String,
     pub created_at: NaiveDateTime,
     pub updated_at: Option<NaiveDateTime>,
     pub parent_topic_id: Option<Vec<u8>>,

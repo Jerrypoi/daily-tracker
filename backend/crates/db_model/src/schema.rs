@@ -19,6 +19,8 @@ diesel::table! {
         id -> Binary,
         #[max_length = 255]
         topic_name -> Varchar,
+        #[max_length = 7]
+        display_color -> Varchar,
         created_at -> Datetime,
         updated_at -> Nullable<Datetime>,
         #[max_length = 16]

@@ -1,6 +1,6 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use db_model::establish_connection;
-use db_model::models::{DailyTrack, Topic};
+use db_model::models::{DEFAULT_TOPIC_DISPLAY_COLOR, DailyTrack, Topic};
 use db_model::schema;
 use diesel::MysqlConnection;
 use diesel::prelude::*;
@@ -71,6 +71,7 @@ pub fn create_topic(
     let new_topic = Topic {
         id: id.clone(),
         topic_name,
+        display_color: DEFAULT_TOPIC_DISPLAY_COLOR.to_string(),
         created_at: now,
         updated_at: None,
         parent_topic_id,

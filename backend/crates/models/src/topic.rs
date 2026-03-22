@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct Topic {
     pub id: u16,
     pub topic_name: String,
+    pub display_color: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]

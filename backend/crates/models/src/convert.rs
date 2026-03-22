@@ -19,6 +19,7 @@ fn vec_u8_to_u16(bytes: &[u8]) -> u16 {
 pub fn db_topic_to_topic(topic: &db_model::models::Topic) -> Topic {
     let id = vec_u8_to_u16(&topic.id);
     let topic_name = topic.topic_name.clone();
+    let display_color = topic.display_color.clone();
     let created_at = Utc.from_utc_datetime(&topic.created_at);
     let updated_at = topic
         .updated_at
@@ -26,7 +27,7 @@ pub fn db_topic_to_topic(topic: &db_model::models::Topic) -> Topic {
         .unwrap_or(created_at);
     let parent_topic_id = topic.parent_topic_id.as_deref().map(vec_u8_to_u16);
 
-    Topic { id, topic_name, created_at, updated_at, parent_topic_id }
+    Topic { id, topic_name, display_color, created_at, updated_at, parent_topic_id }
 }
 
 pub fn db_daily_track_to_daily_track(track: &db_model::models::DailyTrack) -> DailyTrack {
@@ -91,6 +92,7 @@ mod tests {
         let db_topic = db_model::models::Topic {
             id: 123i64.to_be_bytes().to_vec(),
             topic_name: "working".to_string(),
+            display_color: "#3b82f6".to_string(),
             created_at: naive_created,
             updated_at: Some(naive_updated),
             parent_topic_id: Some(456i64.to_be_bytes().to_vec()),
@@ -100,6 +102,7 @@ mod tests {
 
         assert_eq!(topic.id, 123);
         assert_eq!(topic.topic_name, "working");
+        assert_eq!(topic.display_color, "#3b82f6");
         assert_eq!(topic.created_at, Utc.from_utc_datetime(&naive_created));
         assert_eq!(topic.updated_at, Utc.from_utc_datetime(&naive_updated));
         assert_eq!(topic.parent_topic_id, Some(456));
@@ -114,6 +117,7 @@ mod tests {
         let db_topic = db_model::models::Topic {
             id: 1i64.to_be_bytes().to_vec(),
             topic_name: "playing".to_string(),
+            display_color: "#3b82f6".to_string(),
             created_at: naive_created,
             updated_at: None,
             parent_topic_id: None,
