@@ -139,6 +139,65 @@
                         }
                     }
                 }
+            },
+            "put": {
+                "tags": ["Topic"],
+                "summary": "Update a topic",
+                "description": "Updates a topic name and display color by its ID.",
+                "operationId": "updateTopic",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the topic to update",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Topic update payload",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UpdateTopicRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Topic updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/Topic"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request payload",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Topic not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Topic name already exists",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/daily-tracks": {
@@ -300,7 +359,7 @@
     "definitions": {
         "Topic": {
             "type": "object",
-            "required": ["id", "topic_name", "created_at", "updated_at"],
+            "required": ["id", "topic_name", "display_color", "created_at", "updated_at"],
             "properties": {
                 "id": {
                     "type": "integer",
@@ -311,6 +370,11 @@
                     "type": "string",
                     "description": "Name of the topic (e.g., 'playing', 'working')",
                     "example": "working"
+                },
+                "display_color": {
+                    "type": "string",
+                    "description": "Topic display color in hex format (#RRGGBB)",
+                    "example": "#3b82f6"
                 },
                 "created_at": {
                     "type": "string",
@@ -342,6 +406,27 @@
                     "type": "integer",
                     "format": "int64",
                     "description": "Optional parent topic ID for hierarchical organization"
+                },
+                "display_color": {
+                    "type": "string",
+                    "description": "Optional topic display color in hex format (#RRGGBB). Defaults to #3b82f6",
+                    "example": "#14b8a6"
+                }
+            }
+        },
+        "UpdateTopicRequest": {
+            "type": "object",
+            "required": ["topic_name", "display_color"],
+            "properties": {
+                "topic_name": {
+                    "type": "string",
+                    "description": "Updated topic name",
+                    "example": "deep work"
+                },
+                "display_color": {
+                    "type": "string",
+                    "description": "Updated topic display color in hex format (#RRGGBB)",
+                    "example": "#ef4444"
                 }
             }
         },
