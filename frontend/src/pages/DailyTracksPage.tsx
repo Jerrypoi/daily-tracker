@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   createDailyTrack,
@@ -6,7 +6,7 @@ import {
   listDailyTracks,
   updateDailyTrack,
 } from '../api/dailyTracks'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { TopicCascadeSelect } from '../components/TopicCascadeSelect'
 import { getErrorMessage } from '../api/errors'
 import type { DailyTrack } from '../api/generated'
@@ -70,6 +70,17 @@ function isSameDate(left: Date, right: Date): boolean {
   )
 }
 
+function dateFromKey(dayKey: string): Date | null {
+  const [yearText, monthText, dayText] = dayKey.split('-')
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null
+  }
+  return new Date(year, month - 1, day)
+}
+
 export function DailyTracksPage() {
   const [tracks, setTracks] = useState<DailyTrack[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
@@ -85,6 +96,7 @@ export function DailyTracksPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [dragSelection, setDragSelection] = useState<DragSelection | null>(null)
+  const activePointerIdRef = useRef<number | null>(null)
 
   const weekDays = useMemo(
     () => Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) => addDays(weekStart, index)),
@@ -138,10 +150,15 @@ export function DailyTracksPage() {
 
   useEffect(() => {
     function clearDrag() {
+      activePointerIdRef.current = null
       setDragSelection(null)
     }
-    window.addEventListener('mouseup', clearDrag)
-    return () => window.removeEventListener('mouseup', clearDrag)
+    window.addEventListener('pointercancel', clearDrag)
+    window.addEventListener('blur', clearDrag)
+    return () => {
+      window.removeEventListener('pointercancel', clearDrag)
+      window.removeEventListener('blur', clearDrag)
+    }
   }, [])
 
   const topicNameById = useMemo(() => {
@@ -206,7 +223,8 @@ export function DailyTracksPage() {
     setSaveError(null)
   }
 
-  function beginDrag(day: Date, hour: number) {
+  function beginDrag(day: Date, hour: number, pointerId: number) {
+    activePointerIdRef.current = pointerId
     setDragSelection({
       day,
       dayKey: toDateKey(day),
@@ -215,7 +233,10 @@ export function DailyTracksPage() {
     })
   }
 
-  function updateDrag(day: Date, hour: number) {
+  function updateDrag(day: Date, hour: number, pointerId: number) {
+    if (activePointerIdRef.current !== pointerId) {
+      return
+    }
     setDragSelection((current) => {
       if (!current || current.dayKey !== toDateKey(day)) {
         return current
@@ -224,7 +245,11 @@ export function DailyTracksPage() {
     })
   }
 
-  function endDrag(day: Date, hour: number) {
+  function endDrag(day: Date, hour: number, pointerId: number) {
+    if (activePointerIdRef.current !== pointerId) {
+      return
+    }
+    activePointerIdRef.current = null
     setDragSelection((current) => {
       if (!current || current.dayKey !== toDateKey(day)) {
         return null
@@ -235,6 +260,69 @@ export function DailyTracksPage() {
       openCreateModal(current.day, startHour, duration)
       return null
     })
+  }
+
+  function slotFromPointerPosition(clientX: number, clientY: number): { day: Date; hour: number } | null {
+    const target = document
+      .elementFromPoint(clientX, clientY)
+      ?.closest<HTMLButtonElement>('button[data-slot-day][data-slot-hour]')
+    if (!target) {
+      return null
+    }
+    const dayKey = target.dataset.slotDay
+    const hourText = target.dataset.slotHour
+    if (!dayKey || !hourText) {
+      return null
+    }
+    const day = dateFromKey(dayKey)
+    const hour = Number(hourText)
+    if (!day || !Number.isInteger(hour)) {
+      return null
+    }
+    return { day, hour }
+  }
+
+  function onSlotPointerDown(day: Date, hour: number, event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) {
+      return
+    }
+    event.preventDefault()
+    beginDrag(day, hour, event.pointerId)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function onSlotPointerEnter(day: Date, hour: number, event: ReactPointerEvent<HTMLButtonElement>) {
+    updateDrag(day, hour, event.pointerId)
+  }
+
+  function onSlotPointerMove(day: Date, hour: number, event: ReactPointerEvent<HTMLButtonElement>) {
+    const hoveredSlot = slotFromPointerPosition(event.clientX, event.clientY)
+    if (hoveredSlot) {
+      updateDrag(hoveredSlot.day, hoveredSlot.hour, event.pointerId)
+      return
+    }
+    updateDrag(day, hour, event.pointerId)
+  }
+
+  function onSlotPointerUp(day: Date, hour: number, event: ReactPointerEvent<HTMLButtonElement>) {
+    const hoveredSlot = slotFromPointerPosition(event.clientX, event.clientY)
+    const finalDay = hoveredSlot?.day ?? day
+    const finalHour = hoveredSlot?.hour ?? hour
+    endDrag(finalDay, finalHour, event.pointerId)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  function onSlotPointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (activePointerIdRef.current !== event.pointerId) {
+      return
+    }
+    activePointerIdRef.current = null
+    setDragSelection(null)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
   }
 
   function isHourSelectedByDrag(day: Date, hour: number): boolean {
@@ -392,15 +480,18 @@ export function DailyTracksPage() {
                         <button
                           type="button"
                           key={slotKey(day, hour)}
+                          data-slot-day={toDateKey(day)}
+                          data-slot-hour={String(hour)}
                           className={`slot empty-slot ${
                             isSameDate(day, today) ? 'today-slot' : ''
                           } ${
                             isHourSelectedByDrag(day, hour) ? 'drag-selected' : ''
                           }`}
-                          onMouseDown={() => beginDrag(day, hour)}
-                          onMouseEnter={() => updateDrag(day, hour)}
-                          onMouseMove={() => updateDrag(day, hour)}
-                          onMouseUp={() => endDrag(day, hour)}
+                          onPointerDown={(event) => onSlotPointerDown(day, hour, event)}
+                          onPointerEnter={(event) => onSlotPointerEnter(day, hour, event)}
+                          onPointerMove={(event) => onSlotPointerMove(day, hour, event)}
+                          onPointerUp={(event) => onSlotPointerUp(day, hour, event)}
+                          onPointerCancel={onSlotPointerCancel}
                         >
                           +
                         </button>

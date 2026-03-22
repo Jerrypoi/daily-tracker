@@ -419,6 +419,7 @@ button:disabled {
   align-items: center;
   justify-content: center;
   box-shadow: none;
+  touch-action: none;
 }
 
 .today-slot {
@@ -432,12 +433,12 @@ button:disabled {
   transform: none;
 }
 
-.schedule-body.is-dragging .empty-slot:hover {
+.schedule-body.is-dragging .empty-slot:hover:not(.drag-selected) {
   background: #ffffff;
   color: #94a3b8;
 }
 
-.schedule-body.is-dragging .empty-slot.today-slot:hover {
+.schedule-body.is-dragging .empty-slot.today-slot:hover:not(.drag-selected) {
   background: #f8fbff;
 }
 
