@@ -1,6 +1,6 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use db_model::establish_connection;
-use db_model::models::{DEFAULT_TOPIC_DISPLAY_COLOR, DailyTrack, Topic};
+use db_model::models::{DailyTrack, Topic};
 use db_model::schema;
 use diesel::MysqlConnection;
 use diesel::prelude::*;
@@ -48,6 +48,7 @@ pub fn get_topics(parent_topic_id: Option<u16>) -> Result<Vec<Topic>, DieselErro
 
 pub fn create_topic(
     topic_name: String,
+    display_color: String,
     parent_topic_id: Option<Vec<u8>>,
 ) -> Result<Topic, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
@@ -71,7 +72,7 @@ pub fn create_topic(
     let new_topic = Topic {
         id: id.clone(),
         topic_name,
-        display_color: DEFAULT_TOPIC_DISPLAY_COLOR.to_string(),
+        display_color,
         created_at: now,
         updated_at: None,
         parent_topic_id,
@@ -82,6 +83,49 @@ pub fn create_topic(
         .execute(&mut *connection)?;
 
     Ok(new_topic)
+}
+
+pub fn update_topic(
+    id: u16,
+    topic_name: String,
+    display_color: String,
+) -> Result<Option<Topic>, DieselError> {
+    let mut connection = DB_CONNECTION.lock().unwrap();
+    let topics: Vec<Topic> = schema::topic::dsl::topic
+        .select(Topic::as_select())
+        .load(&mut *connection)?;
+
+    let Some(existing_topic) = topics
+        .iter()
+        .find(|t| binary_to_u16(&t.id).map(|public_id| public_id == id).unwrap_or(false))
+    else {
+        return Ok(None);
+    };
+
+    let duplicate_name_exists = topics.iter().any(|t| {
+        t.topic_name == topic_name
+            && t.id != existing_topic.id
+    });
+    if duplicate_name_exists {
+        return Err(DieselError::DatabaseError(
+            diesel::result::DatabaseErrorKind::UniqueViolation,
+            Box::new(format!("Topic with name '{}' already exists", topic_name)),
+        ));
+    }
+
+    diesel::update(schema::topic::dsl::topic.find(existing_topic.id.clone()))
+        .set((
+            schema::topic::dsl::topic_name.eq(topic_name),
+            schema::topic::dsl::display_color.eq(display_color),
+            schema::topic::dsl::updated_at.eq(Some(chrono::Utc::now().naive_utc())),
+        ))
+        .execute(&mut *connection)?;
+
+    schema::topic::dsl::topic
+        .find(existing_topic.id.clone())
+        .select(Topic::as_select())
+        .first(&mut *connection)
+        .optional()
 }
 
 pub fn get_topic_by_id(id: u16) -> Result<Option<Topic>, DieselError> {

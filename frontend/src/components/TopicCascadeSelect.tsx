@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import type { Topic } from '../api/generated'
+import type { Topic } from '../api/topics'
 
 type TopicCascadeSelectProps = {
   topics: Topic[]
@@ -164,7 +164,14 @@ export function TopicCascadeSelect({
                       }}
                       onClick={() => selectTopic(topic.id)}
                     >
-                      <span>{topic.topic_name}</span>
+                      <span className="cascade-option-content">
+                        <span
+                          className="topic-color-dot"
+                          style={{ backgroundColor: topic.display_color }}
+                          aria-hidden="true"
+                        />
+                        <span>{topic.topic_name}</span>
+                      </span>
                       {hasChildren && <span className="cascade-sub-arrow">›</span>}
                     </button>
                   )

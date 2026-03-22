@@ -15,6 +15,13 @@ pub struct Topic {
 pub struct CreateTopicRequest {
     pub topic_name: String,
     pub parent_topic_id: Option<u16>,
+    pub display_color: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpdateTopicRequest {
+    pub topic_name: String,
+    pub display_color: String,
 }
 
 #[derive(Serialize, Deserialize)]

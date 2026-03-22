@@ -6,12 +6,14 @@ import {
   listDailyTracks,
   updateDailyTrack,
 } from '../api/dailyTracks'
+import type { CSSProperties } from 'react'
 import { TopicCascadeSelect } from '../components/TopicCascadeSelect'
 import { getErrorMessage } from '../api/errors'
-import type { DailyTrack, Topic } from '../api/generated'
-import { listTopics } from '../api/topics'
+import type { DailyTrack } from '../api/generated'
+import { DEFAULT_TOPIC_COLOR, listTopics } from '../api/topics'
+import type { Topic } from '../api/topics'
 
-const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const VISIBLE_DAY_COUNT = 4
 
 type ModalState =
   | { mode: 'create'; day: Date; hour: number }
@@ -38,12 +40,10 @@ function toDateKey(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-function startOfWeek(date: Date): Date {
+function startOfDefaultWindow(date: Date): Date {
   const normalized = new Date(date)
   normalized.setHours(0, 0, 0, 0)
-  const day = normalized.getDay()
-  const distanceFromMonday = (day + 6) % 7
-  normalized.setDate(normalized.getDate() - distanceFromMonday)
+  normalized.setDate(normalized.getDate() - 1)
   return normalized
 }
 
@@ -54,12 +54,20 @@ function addDays(date: Date, offset: number): Date {
 }
 
 function weekLabel(weekStart: Date): string {
-  const weekEnd = addDays(weekStart, 6)
+  const weekEnd = addDays(weekStart, VISIBLE_DAY_COUNT - 1)
   return `${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
 }
 
 function slotKey(day: Date, hour: number): string {
   return `${toDateKey(day)}-${String(hour).padStart(2, '0')}`
+}
+
+function isSameDate(left: Date, right: Date): boolean {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
 }
 
 export function DailyTracksPage() {
@@ -68,7 +76,7 @@ export function DailyTracksPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
+  const [weekStart, setWeekStart] = useState(() => startOfDefaultWindow(new Date()))
   const [modalState, setModalState] = useState<ModalState | null>(null)
   const [topicId, setTopicId] = useState('')
   const [comment, setComment] = useState('')
@@ -78,9 +86,21 @@ export function DailyTracksPage() {
   const [dragSelection, setDragSelection] = useState<DragSelection | null>(null)
 
   const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
+    () => Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) => addDays(weekStart, index)),
     [weekStart],
   )
+  const scheduleGridStyle = useMemo(
+    () =>
+      ({
+        '--day-count': String(weekDays.length),
+      }) as CSSProperties,
+    [weekDays.length],
+  )
+  const today = useMemo(() => {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    return now
+  }, [])
 
   async function loadTracksForWeek(targetWeekStart: Date) {
     setLoading(true)
@@ -88,7 +108,7 @@ export function DailyTracksPage() {
 
     try {
       const startDate = toDateKey(targetWeekStart)
-      const endDate = toDateKey(addDays(targetWeekStart, 6))
+      const endDate = toDateKey(addDays(targetWeekStart, VISIBLE_DAY_COUNT - 1))
       const data = await listDailyTracks({ startDate, endDate })
       setTracks(data)
     } catch (err) {
@@ -127,6 +147,14 @@ export function DailyTracksPage() {
     const map = new Map<number, string>()
     for (const topic of topics) {
       map.set(topic.id, topic.topic_name)
+    }
+    return map
+  }, [topics])
+
+  const topicColorById = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const topic of topics) {
+      map.set(topic.id, topic.display_color)
     }
     return map
   }, [topics])
@@ -318,31 +346,34 @@ export function DailyTracksPage() {
           <p className="calendar-month">{weekLabel(weekStart)}</p>
         </div>
         <div className="calendar-toolbar">
-          <button type="button" onClick={() => setWeekStart(addDays(weekStart, -7))}>
-            Previous Week
+          <button type="button" onClick={() => setWeekStart(addDays(weekStart, -VISIBLE_DAY_COUNT))}>
+            Previous
           </button>
-          <button type="button" onClick={() => setWeekStart(startOfWeek(new Date()))}>
-            This Week
+          <button type="button" onClick={() => setWeekStart(startOfDefaultWindow(new Date()))}>
+            Today Window
           </button>
-          <button type="button" onClick={() => setWeekStart(addDays(weekStart, 7))}>
-            Next Week
+          <button type="button" onClick={() => setWeekStart(addDays(weekStart, VISIBLE_DAY_COUNT))}>
+            Next
           </button>
         </div>
         {loading && <p>Loading...</p>}
         {error && <p className="error">{error}</p>}
         {!loading && !error && (
           <>
-            <div className="schedule-grid schedule-head">
+            <div className="schedule-grid schedule-head" style={scheduleGridStyle}>
               <span className="hour-cell" />
-              {weekDays.map((day, index) => (
-                <span key={toDateKey(day)} className="day-cell">
-                  {weekdayLabels[index]} {day.getDate()}
+              {weekDays.map((day) => (
+                <span
+                  key={toDateKey(day)}
+                  className={`day-cell ${isSameDate(day, today) ? 'is-today' : ''}`}
+                >
+                  {day.toLocaleDateString(undefined, { weekday: 'short' })} {day.getDate()}
                 </span>
               ))}
             </div>
             <div className="schedule-body">
               {Array.from({ length: 24 }, (_, hour) => (
-                <div key={hour} className="schedule-grid hour-row">
+                <div key={hour} className="schedule-grid hour-row" style={scheduleGridStyle}>
                   <span className="hour-cell">
                     {String(hour).padStart(2, '0')}:00
                   </span>
@@ -354,6 +385,8 @@ export function DailyTracksPage() {
                           type="button"
                           key={slotKey(day, hour)}
                           className={`slot empty-slot ${
+                            isSameDate(day, today) ? 'today-slot' : ''
+                          } ${
                             isHourSelectedByDrag(day, hour) ? 'drag-selected' : ''
                           }`}
                           onMouseDown={() => beginDrag(day, hour)}
@@ -366,23 +399,31 @@ export function DailyTracksPage() {
                     }
 
                     return (
-                      <div key={slotKey(day, hour)} className="slot filled-slot">
-                        {entries.map((track) => (
-                          <button
-                            key={track.id}
-                            type="button"
-                            className="slot-item slot-item-button"
-                            onClick={() => openEditModal(track)}
-                          >
-                            <strong>
-                              {parseApiDateTime(track.start_time).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </strong>
-                            <span>{topicNameById.get(track.topic_id) ?? 'Topic'}</span>
-                          </button>
-                        ))}
+                      <div
+                        key={slotKey(day, hour)}
+                        className={`slot filled-slot ${isSameDate(day, today) ? 'today-slot' : ''}`}
+                      >
+                        {entries.map((track) => {
+                          const topicColor =
+                            topicColorById.get(track.topic_id) ?? DEFAULT_TOPIC_COLOR
+                          return (
+                            <button
+                              key={track.id}
+                              type="button"
+                              className="slot-item slot-item-button"
+                              style={{ '--topic-color': topicColor } as CSSProperties}
+                              onClick={() => openEditModal(track)}
+                            >
+                              <strong>
+                                {parseApiDateTime(track.start_time).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </strong>
+                              <span>{topicNameById.get(track.topic_id) ?? 'Topic'}</span>
+                            </button>
+                          )
+                        })}
                       </div>
                     )
                   })}

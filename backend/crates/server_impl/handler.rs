@@ -2,9 +2,18 @@ use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::Json;
 use chrono::NaiveDate;
+use db_model::models::DEFAULT_TOPIC_DISPLAY_COLOR;
 use models::*;
 
 // --- Topic Handlers ---
+fn is_valid_hex_color(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 7 || bytes[0] != b'#' {
+        return false;
+    }
+
+    bytes[1..].iter().all(|b| b.is_ascii_hexdigit())
+}
 
 pub async fn get_topics(
     Query(params): Query<GetTopicsParams>,
@@ -36,7 +45,16 @@ pub async fn create_topic(
         None
     };
 
-    let db_topic = db::create_topic(req.topic_name, parent_topic_id_binary).map_err(|e| {
+    let display_color = req
+        .display_color
+        .unwrap_or_else(|| DEFAULT_TOPIC_DISPLAY_COLOR.to_string());
+    if !is_valid_hex_color(&display_color) {
+        return Err(ApiError::BadRequest(
+            "display_color must be a valid hex color like #3b82f6".to_string(),
+        ));
+    }
+
+    let db_topic = db::create_topic(req.topic_name, display_color, parent_topic_id_binary).map_err(|e| {
         match e {
             diesel::result::Error::DatabaseError(
                 diesel::result::DatabaseErrorKind::UniqueViolation,
@@ -55,6 +73,36 @@ pub async fn get_topic_by_id(Path(id): Path<u16>) -> Result<Json<Topic>, ApiErro
 
     match topic {
         Some(t) => Ok(Json(db_topic_to_topic(&t))),
+        None => Err(ApiError::NotFound(format!("Topic with id {} not found", id))),
+    }
+}
+
+pub async fn update_topic(
+    Path(id): Path<u16>,
+    Json(req): Json<UpdateTopicRequest>,
+) -> Result<Json<Topic>, ApiError> {
+    let topic_name = req.topic_name.trim().to_string();
+    if topic_name.is_empty() {
+        return Err(ApiError::BadRequest(
+            "topic_name is required and cannot be empty".to_string(),
+        ));
+    }
+    if !is_valid_hex_color(&req.display_color) {
+        return Err(ApiError::BadRequest(
+            "display_color must be a valid hex color like #3b82f6".to_string(),
+        ));
+    }
+
+    let updated = db::update_topic(id, topic_name, req.display_color).map_err(|e| match e {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UniqueViolation,
+            _,
+        ) => ApiError::Conflict("Topic name already exists".to_string()),
+        _ => ApiError::InternalServerError(format!("Failed to update topic: {}", e)),
+    })?;
+
+    match updated {
+        Some(topic) => Ok(Json(db_topic_to_topic(&topic))),
         None => Err(ApiError::NotFound(format!("Topic with id {} not found", id))),
     }
 }

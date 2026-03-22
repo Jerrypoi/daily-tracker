@@ -27,7 +27,7 @@ async fn main() {
 fn register_routes() -> Router {
     let api_routes = Router::new()
         .route("/topics", get(handler::get_topics).post(handler::create_topic))
-        .route("/topics/{id}", get(handler::get_topic_by_id))
+        .route("/topics/{id}", get(handler::get_topic_by_id).put(handler::update_topic))
         .route("/daily-tracks", get(handler::get_daily_tracks).post(handler::create_daily_track))
         .route(
             "/daily-tracks/{id}",
