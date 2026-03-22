@@ -169,11 +169,57 @@ pub fn create_daily_track(
 
 pub fn get_daily_track_by_id(id: i64) -> Result<Option<DailyTrack>, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
-    let binary_id = i64_to_binary(id);
+    let tracks: Vec<DailyTrack> = schema::daily_track::dsl::daily_track
+        .select(DailyTrack::as_select())
+        .load(&mut *connection)?;
+
+    Ok(tracks.into_iter().find(|t| {
+        binary_to_u16(&t.id).map(|public_id| public_id == id as u16).unwrap_or(false)
+    }))
+}
+
+pub fn update_daily_track(
+    id: u16,
+    topic_id: Vec<u8>,
+    comment: Option<String>,
+) -> Result<Option<DailyTrack>, DieselError> {
+    let mut connection = DB_CONNECTION.lock().unwrap();
+    let tracks: Vec<DailyTrack> = schema::daily_track::dsl::daily_track
+        .select(DailyTrack::as_select())
+        .load(&mut *connection)?;
+    let Some(existing_track) = tracks.into_iter().find(|t| {
+        binary_to_u16(&t.id).map(|public_id| public_id == id).unwrap_or(false)
+    }) else {
+        return Ok(None);
+    };
+
+    diesel::update(schema::daily_track::dsl::daily_track.find(existing_track.id.clone()))
+        .set((
+            schema::daily_track::dsl::topic_id.eq(Some(topic_id)),
+            schema::daily_track::dsl::comment.eq(comment),
+            schema::daily_track::dsl::updated_at.eq(Some(chrono::Utc::now().naive_utc())),
+        ))
+        .execute(&mut *connection)?;
 
     schema::daily_track::dsl::daily_track
-        .filter(schema::daily_track::id.eq(binary_id))
+        .find(existing_track.id)
         .select(DailyTrack::as_select())
         .first(&mut *connection)
         .optional()
+}
+
+pub fn delete_daily_track(id: u16) -> Result<bool, DieselError> {
+    let mut connection = DB_CONNECTION.lock().unwrap();
+    let tracks: Vec<DailyTrack> = schema::daily_track::dsl::daily_track
+        .select(DailyTrack::as_select())
+        .load(&mut *connection)?;
+    let Some(track) = tracks.into_iter().find(|t| {
+        binary_to_u16(&t.id).map(|public_id| public_id == id).unwrap_or(false)
+    }) else {
+        return Ok(false);
+    };
+
+    let deleted = diesel::delete(schema::daily_track::dsl::daily_track.find(track.id))
+        .execute(&mut *connection)?;
+    Ok(deleted > 0)
 }

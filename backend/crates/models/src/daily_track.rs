@@ -19,6 +19,12 @@ pub struct CreateDailyTrackRequest {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct UpdateDailyTrackRequest {
+    pub topic_id: u16,
+    pub comment: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct GetDailyTracksParams {
     pub start_date: Option<String>,
     pub end_date: Option<String>,

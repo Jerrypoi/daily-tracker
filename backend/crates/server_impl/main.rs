@@ -29,11 +29,22 @@ fn register_routes() -> Router {
         .route("/topics", get(handler::get_topics).post(handler::create_topic))
         .route("/topics/{id}", get(handler::get_topic_by_id))
         .route("/daily-tracks", get(handler::get_daily_tracks).post(handler::create_daily_track))
-        .route("/daily-tracks/{id}", get(handler::get_daily_track_by_id));
+        .route(
+            "/daily-tracks/{id}",
+            get(handler::get_daily_track_by_id)
+                .put(handler::update_daily_track)
+                .delete(handler::delete_daily_track),
+        );
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers(Any);
 
     Router::new()

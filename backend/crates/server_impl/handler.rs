@@ -156,3 +156,46 @@ pub async fn get_daily_track_by_id(Path(id): Path<i64>) -> Result<Json<DailyTrac
         ))),
     }
 }
+
+pub async fn update_daily_track(
+    Path(id): Path<u16>,
+    Json(req): Json<UpdateDailyTrackRequest>,
+) -> Result<Json<DailyTrack>, ApiError> {
+    let topic = db::get_topic_by_id(req.topic_id).map_err(|e| {
+        ApiError::InternalServerError(format!("Failed to verify topic: {}", e))
+    })?;
+
+    let Some(topic) = topic else {
+        return Err(ApiError::NotFound(format!(
+            "Topic with id {} not found",
+            req.topic_id
+        )));
+    };
+
+    let track = db::update_daily_track(id, topic.id, req.comment).map_err(|e| {
+        ApiError::InternalServerError(format!("Failed to update daily track: {}", e))
+    })?;
+
+    match track {
+        Some(t) => Ok(Json(db_daily_track_to_daily_track(&t))),
+        None => Err(ApiError::NotFound(format!(
+            "Daily track with id {} not found",
+            id
+        ))),
+    }
+}
+
+pub async fn delete_daily_track(Path(id): Path<u16>) -> Result<StatusCode, ApiError> {
+    let deleted = db::delete_daily_track(id).map_err(|e| {
+        ApiError::InternalServerError(format!("Failed to delete daily track: {}", e))
+    })?;
+
+    if deleted {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(ApiError::NotFound(format!(
+            "Daily track with id {} not found",
+            id
+        )))
+    }
+}
