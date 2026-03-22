@@ -432,6 +432,15 @@ button:disabled {
   transform: none;
 }
 
+.schedule-body.is-dragging .empty-slot:hover {
+  background: #ffffff;
+  color: #94a3b8;
+}
+
+.schedule-body.is-dragging .empty-slot.today-slot:hover {
+  background: #f8fbff;
+}
+
 .empty-slot.drag-selected {
   background: #dbeafe;
   color: #1d4ed8;

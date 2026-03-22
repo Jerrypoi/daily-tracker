@@ -231,8 +231,7 @@ export function DailyTracksPage() {
       }
 
       const startHour = Math.min(current.anchorHour, hour)
-      const duration =
-        current.anchorHour === hour ? 1 : Math.abs(current.anchorHour - hour)
+      const duration = Math.abs(current.anchorHour - hour) + 1
       openCreateModal(current.day, startHour, duration)
       return null
     })
@@ -249,10 +248,10 @@ export function DailyTracksPage() {
     }
 
     if (currentHour > anchorHour) {
-      return hour >= anchorHour && hour < currentHour
+      return hour >= anchorHour && hour <= currentHour
     }
 
-    return hour >= currentHour && hour < anchorHour
+    return hour >= currentHour && hour <= anchorHour
   }
 
   async function submitModal() {
@@ -380,7 +379,7 @@ export function DailyTracksPage() {
                 </span>
               ))}
             </div>
-            <div className="schedule-body">
+            <div className={`schedule-body ${dragSelection ? 'is-dragging' : ''}`}>
               {Array.from({ length: 24 }, (_, hour) => (
                 <div key={hour} className="schedule-grid hour-row" style={scheduleGridStyle}>
                   <span className="hour-cell">
@@ -400,6 +399,7 @@ export function DailyTracksPage() {
                           }`}
                           onMouseDown={() => beginDrag(day, hour)}
                           onMouseEnter={() => updateDrag(day, hour)}
+                          onMouseMove={() => updateDrag(day, hour)}
                           onMouseUp={() => endDrag(day, hour)}
                         >
                           +
