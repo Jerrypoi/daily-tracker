@@ -157,6 +157,7 @@ button:disabled {
   overflow: auto;
   border: 1px solid #e6e8ef;
   border-radius: 12px;
+  user-select: none;
 }
 
 .schedule-grid {
@@ -222,6 +223,11 @@ button:disabled {
   color: #1d4ed8;
   box-shadow: none;
   transform: none;
+}
+
+.empty-slot.drag-selected {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .filled-slot {
@@ -295,6 +301,102 @@ button:disabled {
 .danger-button {
   background: #b91c1c;
   border-color: #b91c1c;
+}
+
+.cascade-select {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.cascade-clear {
+  justify-self: start;
+  background: #ffffff;
+  color: #475569;
+}
+
+.cascade-root {
+  position: relative;
+}
+
+.cascade-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  color: #1f2937;
+  box-shadow: none;
+}
+
+.cascade-trigger:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.cascade-trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cascade-arrow {
+  color: #64748b;
+}
+
+.cascade-popover {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 220px;
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+  padding: 0.35rem;
+}
+
+.cascade-columns {
+  display: flex;
+  align-items: flex-start;
+}
+
+.cascade-column {
+  min-width: 220px;
+  padding: 0.15rem;
+  border-right: 1px solid #eef2f7;
+}
+
+.cascade-column:last-child {
+  border-right: none;
+}
+
+.cascade-option {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: none;
+  background: transparent;
+  color: #1f2937;
+  border-radius: 8px;
+  padding: 0.42rem 0.5rem;
+  box-shadow: none;
+  text-align: left;
+}
+
+.cascade-option:hover {
+  transform: none;
+  box-shadow: none;
+  background: #f1f5f9;
+}
+
+.cascade-option.is-selected {
+  background: #e2e8f0;
+}
+
+.cascade-sub-arrow {
+  color: #64748b;
 }
 
 .calendar-weekdays {

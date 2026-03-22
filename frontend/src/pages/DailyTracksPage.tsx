@@ -6,6 +6,7 @@ import {
   listDailyTracks,
   updateDailyTrack,
 } from '../api/dailyTracks'
+import { TopicCascadeSelect } from '../components/TopicCascadeSelect'
 import { getErrorMessage } from '../api/errors'
 import type { DailyTrack, Topic } from '../api/generated'
 import { listTopics } from '../api/topics'
@@ -15,6 +16,13 @@ const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 type ModalState =
   | { mode: 'create'; day: Date; hour: number }
   | { mode: 'edit'; day: Date; hour: number; track: DailyTrack }
+
+type DragSelection = {
+  day: Date
+  dayKey: string
+  anchorHour: number
+  currentHour: number
+}
 
 function parseApiDateTime(value: unknown): Date {
   if (typeof value === 'number') {
@@ -67,6 +75,7 @@ export function DailyTracksPage() {
   const [durationHours, setDurationHours] = useState('1')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [dragSelection, setDragSelection] = useState<DragSelection | null>(null)
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
@@ -106,6 +115,14 @@ export function DailyTracksPage() {
     void loadTracksForWeek(weekStart)
   }, [weekStart])
 
+  useEffect(() => {
+    function clearDrag() {
+      setDragSelection(null)
+    }
+    window.addEventListener('mouseup', clearDrag)
+    return () => window.removeEventListener('mouseup', clearDrag)
+  }, [])
+
   const topicNameById = useMemo(() => {
     const map = new Map<number, string>()
     for (const topic of topics) {
@@ -136,11 +153,11 @@ export function DailyTracksPage() {
     return grouped
   }, [tracks])
 
-  function openCreateModal(day: Date, hour: number) {
+  function openCreateModal(day: Date, hour: number, duration = 1) {
     setSaveError(null)
     setTopicId('')
     setComment('')
-    setDurationHours('1')
+    setDurationHours(String(duration))
     setModalState({ mode: 'create', day, hour })
   }
 
@@ -157,6 +174,55 @@ export function DailyTracksPage() {
     setTopicId('')
     setComment('')
     setSaveError(null)
+  }
+
+  function beginDrag(day: Date, hour: number) {
+    setDragSelection({
+      day,
+      dayKey: toDateKey(day),
+      anchorHour: hour,
+      currentHour: hour,
+    })
+  }
+
+  function updateDrag(day: Date, hour: number) {
+    setDragSelection((current) => {
+      if (!current || current.dayKey !== toDateKey(day)) {
+        return current
+      }
+      return { ...current, currentHour: hour }
+    })
+  }
+
+  function endDrag(day: Date, hour: number) {
+    setDragSelection((current) => {
+      if (!current || current.dayKey !== toDateKey(day)) {
+        return null
+      }
+
+      const startHour = Math.min(current.anchorHour, hour)
+      const duration =
+        current.anchorHour === hour ? 1 : Math.abs(current.anchorHour - hour)
+      openCreateModal(current.day, startHour, duration)
+      return null
+    })
+  }
+
+  function isHourSelectedByDrag(day: Date, hour: number): boolean {
+    if (!dragSelection || dragSelection.dayKey !== toDateKey(day)) {
+      return false
+    }
+
+    const { anchorHour, currentHour } = dragSelection
+    if (anchorHour === currentHour) {
+      return hour === anchorHour
+    }
+
+    if (currentHour > anchorHour) {
+      return hour >= anchorHour && hour < currentHour
+    }
+
+    return hour >= currentHour && hour < anchorHour
   }
 
   async function submitModal() {
@@ -287,8 +353,12 @@ export function DailyTracksPage() {
                         <button
                           type="button"
                           key={slotKey(day, hour)}
-                          className="slot empty-slot"
-                          onClick={() => openCreateModal(day, hour)}
+                          className={`slot empty-slot ${
+                            isHourSelectedByDrag(day, hour) ? 'drag-selected' : ''
+                          }`}
+                          onMouseDown={() => beginDrag(day, hour)}
+                          onMouseEnter={() => updateDrag(day, hour)}
+                          onMouseUp={() => endDrag(day, hour)}
                         >
                           +
                         </button>
@@ -342,14 +412,7 @@ export function DailyTracksPage() {
             </p>
             <label>
               Topic
-              <select value={topicId} onChange={(event) => setTopicId(event.target.value)}>
-                <option value="">Select a topic</option>
-                {topics.map((topic) => (
-                  <option key={topic.id} value={String(topic.id)}>
-                    {topic.topic_name}
-                  </option>
-                ))}
-              </select>
+              <TopicCascadeSelect topics={topics} value={topicId} onChange={setTopicId} />
             </label>
             {modalState.mode === 'create' && (
               <label>

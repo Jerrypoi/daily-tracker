@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { getErrorMessage } from '../api/errors'
 import { createTopic, listTopics } from '../api/topics'
 import type { Topic } from '../api/generated'
+import { TopicCascadeSelect } from '../components/TopicCascadeSelect'
 
 export function TopicsPage() {
   const [topics, setTopics] = useState<Topic[]>([])
@@ -70,17 +71,13 @@ export function TopicsPage() {
         </label>
         <label>
           Parent Topic (optional)
-          <select
+          <TopicCascadeSelect
+            topics={topics}
             value={parentTopicId}
-            onChange={(event) => setParentTopicId(event.target.value)}
-          >
-            <option value="">None</option>
-            {topics.map((topic) => (
-              <option key={topic.id} value={String(topic.id)}>
-                {topic.topic_name}
-              </option>
-            ))}
-          </select>
+            onChange={setParentTopicId}
+            allowNone
+            noneLabel="None"
+          />
         </label>
         <button type="submit" disabled={saving}>
           {saving ? 'Saving...' : 'Create Topic'}
