@@ -12,6 +12,10 @@ export type Topic = {
      */
     topic_name: string;
     /**
+     * Topic display color in hex format (#RRGGBB)
+     */
+    display_color: string;
+    /**
      * Timestamp when the topic was created
      */
     created_at: string;

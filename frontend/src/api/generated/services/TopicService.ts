@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { CreateTopicRequest } from '../models/CreateTopicRequest';
 import type { Topic } from '../models/Topic';
+import type { UpdateTopicRequest } from '../models/UpdateTopicRequest';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -68,6 +69,33 @@ export class TopicService {
             },
             errors: {
                 404: `Topic not found`,
+                500: `Internal server error`,
+            },
+        });
+    }
+    /**
+     * Update a topic
+     * Updates a topic name and display color by its ID.
+     * @param id ID of the topic to update
+     * @param body Topic update payload
+     * @returns Topic Topic updated successfully
+     * @throws ApiError
+     */
+    public static updateTopic(
+        id: number,
+        body: UpdateTopicRequest,
+    ): CancelablePromise<Topic> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/topics/{id}',
+            path: {
+                'id': id,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request payload`,
+                404: `Topic not found`,
+                409: `Topic name already exists`,
                 500: `Internal server error`,
             },
         });

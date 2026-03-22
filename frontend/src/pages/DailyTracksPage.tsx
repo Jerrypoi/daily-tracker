@@ -80,7 +80,8 @@ export function DailyTracksPage() {
   const [modalState, setModalState] = useState<ModalState | null>(null)
   const [topicId, setTopicId] = useState('')
   const [comment, setComment] = useState('')
-  const [durationHours, setDurationHours] = useState('1')
+  /** Exclusive end hour on the same day as start (e.g. start 9 + end 14 → slots 9–13). */
+  const [endHourExclusive, setEndHourExclusive] = useState('2')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [dragSelection, setDragSelection] = useState<DragSelection | null>(null)
@@ -185,7 +186,8 @@ export function DailyTracksPage() {
     setSaveError(null)
     setTopicId('')
     setComment('')
-    setDurationHours(String(duration))
+    const endExclusive = Math.min(hour + duration, 24)
+    setEndHourExclusive(String(Math.max(endExclusive, hour + 1)))
     setModalState({ mode: 'create', day, hour })
   }
 
@@ -268,12 +270,19 @@ export function DailyTracksPage() {
     setSaving(true)
     try {
       if (modalState.mode === 'create') {
-        const parsedDuration = Number(durationHours)
-        if (!Number.isInteger(parsedDuration) || parsedDuration < 1) {
-          setSaveError('duration must be at least 1 hour')
+        const startHour = modalState.hour
+        const parsedEndExclusive = Number(endHourExclusive)
+        if (
+          !Number.isInteger(parsedEndExclusive) ||
+          parsedEndExclusive <= startHour ||
+          parsedEndExclusive > 24
+        ) {
+          setSaveError('end time must be after start and on the same day (before midnight)')
           setSaving(false)
           return
         }
+
+        const parsedDuration = parsedEndExclusive - startHour
 
         const conflictHour = Array.from({ length: parsedDuration }, (_, offset) => {
           const slotDateTime = new Date(modalState.day)
@@ -448,8 +457,27 @@ export function DailyTracksPage() {
                 : 'Edit Daily Track'}
             </h3>
             <p className="modal-meta">
-              {modalState.day.toLocaleDateString()} {String(modalState.hour).padStart(2, '0')}
-              :00
+              {modalState.mode === 'create' ? (
+                <>
+                  {modalState.day.toLocaleDateString()}{' '}
+                  <strong>
+                    {String(modalState.hour).padStart(2, '0')}:00
+                  </strong>
+                  {' → '}
+                  <strong>{String(endHourExclusive).padStart(2, '0')}:00</strong>
+                  <span className="modal-meta-hint">
+                    {' '}
+                    (
+                    {Math.max(0, Number(endHourExclusive) - modalState.hour) || '—'}{' '}
+                    {Number(endHourExclusive) - modalState.hour === 1 ? 'hour' : 'hours'})
+                  </span>
+                </>
+              ) : (
+                <>
+                  {modalState.day.toLocaleDateString()}{' '}
+                  {String(modalState.hour).padStart(2, '0')}:00
+                </>
+              )}
             </p>
             <label>
               Topic
@@ -457,18 +485,23 @@ export function DailyTracksPage() {
             </label>
             {modalState.mode === 'create' && (
               <label>
-                Duration
+                End time
                 <select
-                  value={durationHours}
-                  onChange={(event) => setDurationHours(event.target.value)}
+                  value={endHourExclusive}
+                  onChange={(event) => setEndHourExclusive(event.target.value)}
                 >
-                  <option value="1">1 hour</option>
-                  <option value="2">2 hours</option>
-                  <option value="3">3 hours</option>
-                  <option value="4">4 hours</option>
-                  <option value="6">6 hours</option>
-                  <option value="8">8 hours</option>
+                  {Array.from({ length: 24 - modalState.hour }, (_, index) => {
+                    const endH = modalState.hour + 1 + index
+                    const span = endH - modalState.hour
+                    return (
+                      <option key={endH} value={String(endH)}>
+                        {String(endH).padStart(2, '0')}:00 ({span}{' '}
+                        {span === 1 ? 'hour' : 'hours'})
+                      </option>
+                    )
+                  })}
                 </select>
+                <span className="field-hint">The end hour is not included (same as drag-select).</span>
               </label>
             )}
             <label>

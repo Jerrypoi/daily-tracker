@@ -12,6 +12,7 @@ export type { CreateTopicRequest } from './models/CreateTopicRequest';
 export type { DailyTrack } from './models/DailyTrack';
 export type { ErrorResponse } from './models/ErrorResponse';
 export type { Topic } from './models/Topic';
+export type { UpdateTopicRequest } from './models/UpdateTopicRequest';
 
 export { DailyTrackService } from './services/DailyTrackService';
 export { TopicService } from './services/TopicService';
