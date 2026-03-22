@@ -5,6 +5,7 @@ import { DEFAULT_TOPIC_COLOR } from '../api/topics'
 type TopicColorPickerProps = {
   value: string
   onChange: (value: string) => void
+  hexInputName?: string
 }
 
 const PRESET_COLORS = [
@@ -24,7 +25,11 @@ function normalizeColor(value: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : DEFAULT_TOPIC_COLOR
 }
 
-export function TopicColorPicker({ value, onChange }: TopicColorPickerProps) {
+function isHexColor(value: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(value)
+}
+
+export function TopicColorPicker({ value, onChange, hexInputName }: TopicColorPickerProps) {
   const [hexDraft, setHexDraft] = useState(normalizeColor(value))
   const paletteInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -88,8 +93,15 @@ export function TopicColorPicker({ value, onChange }: TopicColorPickerProps) {
       <label>
         HEX
         <input
+          name={hexInputName}
           value={hexDraft}
-          onChange={(event) => setHexDraft(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value
+            setHexDraft(next)
+            if (isHexColor(next)) {
+              onChange(next.toLowerCase())
+            }
+          }}
           onBlur={(event) => commitHex(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { getErrorMessage } from '../api/errors'
@@ -28,6 +28,8 @@ export function TopicsPage() {
   const [editingColor, setEditingColor] = useState(DEFAULT_TOPIC_COLOR)
   const [editing, setEditing] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+  const topicColorRef = useRef(DEFAULT_TOPIC_COLOR)
+  const editingColorRef = useRef(DEFAULT_TOPIC_COLOR)
 
   async function loadTopics() {
     setLoading(true)
@@ -74,15 +76,19 @@ export function TopicsPage() {
     setSaving(true)
 
     const parsedParentTopicId = parentTopicId ? Number(parentTopicId) : undefined
+    const parsedColor = /^#[0-9a-fA-F]{6}$/.test(topicColorRef.current)
+      ? topicColorRef.current.toLowerCase()
+      : DEFAULT_TOPIC_COLOR
 
     try {
       await createTopic({
         topicName: topicName.trim(),
         parentTopicId: parsedParentTopicId,
-        displayColor: topicColor,
+        displayColor: parsedColor,
       })
       setTopicName('')
       setTopicColor(DEFAULT_TOPIC_COLOR)
+      topicColorRef.current = DEFAULT_TOPIC_COLOR
       setParentTopicId('')
       await loadTopics()
     } catch (err) {
@@ -97,7 +103,9 @@ export function TopicsPage() {
   function openEditModal(topic: Topic) {
     setEditingTopic(topic)
     setEditingName(topic.topic_name)
-    setEditingColor(topic.display_color || DEFAULT_TOPIC_COLOR)
+    const nextColor = topic.display_color || DEFAULT_TOPIC_COLOR
+    setEditingColor(nextColor)
+    editingColorRef.current = nextColor
     setEditError(null)
   }
 
@@ -123,7 +131,7 @@ export function TopicsPage() {
     try {
       await updateTopic(editingTopic.id, {
         topicName: nextName,
-        displayColor: editingColor,
+        displayColor: editingColorRef.current,
       })
       closeEditModal()
       await loadTopics()
@@ -132,6 +140,16 @@ export function TopicsPage() {
     } finally {
       setEditing(false)
     }
+  }
+
+  function handleCreateColorChange(nextColor: string) {
+    topicColorRef.current = nextColor
+    setTopicColor(nextColor)
+  }
+
+  function handleEditColorChange(nextColor: string) {
+    editingColorRef.current = nextColor
+    setEditingColor(nextColor)
   }
 
   function toggleExpanded(topicId: number) {
@@ -219,7 +237,11 @@ export function TopicsPage() {
         </label>
         <div className="field-block">
           <span className="field-label">Default Color</span>
-          <TopicColorPicker value={topicColor} onChange={setTopicColor} />
+          <TopicColorPicker
+            value={topicColor}
+            onChange={handleCreateColorChange}
+            hexInputName="create-topic-color"
+          />
         </div>
         <button type="submit" disabled={saving}>
           {saving ? 'Saving...' : 'Create Topic'}
@@ -265,7 +287,11 @@ export function TopicsPage() {
               </label>
               <div className="field-block">
                 <span className="field-label">Display Color</span>
-                <TopicColorPicker value={editingColor} onChange={setEditingColor} />
+                <TopicColorPicker
+                  value={editingColor}
+                  onChange={handleEditColorChange}
+                  hexInputName="edit-topic-color"
+                />
               </div>
               {editError && <p className="error">{editError}</p>}
               <div className="modal-actions">
