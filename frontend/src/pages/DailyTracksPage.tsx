@@ -14,11 +14,17 @@ import { DEFAULT_TOPIC_COLOR, listTopics } from '../api/topics'
 import type { Topic } from '../api/topics'
 
 const VISIBLE_DAY_COUNT = 4
-const HOUR_SLOT_HEIGHT_PX = 64
+type ViewMode = 'week' | 'month' | 'year'
 
 type ModalState =
   | { mode: 'create'; day: Date; hour: number }
   | { mode: 'edit'; day: Date; hour: number; track: DailyTrack }
+
+type HoveredBoardCell = {
+  day: Date
+  hour: number
+  entries: DailyTrack[]
+}
 
 type DragSelection = {
   day: Date
@@ -52,6 +58,48 @@ function addDays(date: Date, offset: number): Date {
   const shifted = new Date(date)
   shifted.setDate(shifted.getDate() + offset)
   return shifted
+}
+
+function addMonths(date: Date, offset: number): Date {
+  const shifted = new Date(date)
+  shifted.setMonth(shifted.getMonth() + offset)
+  return shifted
+}
+
+function startOfMonth(date: Date): Date {
+  const normalized = new Date(date)
+  normalized.setHours(0, 0, 0, 0)
+  normalized.setDate(1)
+  return normalized
+}
+
+function endOfMonth(date: Date): Date {
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+  end.setHours(0, 0, 0, 0)
+  return end
+}
+
+function startOfYear(year: number): Date {
+  const start = new Date(year, 0, 1)
+  start.setHours(0, 0, 0, 0)
+  return start
+}
+
+function endOfYear(year: number): Date {
+  const end = new Date(year, 11, 31)
+  end.setHours(0, 0, 0, 0)
+  return end
+}
+
+function enumerateDays(start: Date, end: Date): Date[] {
+  const days: Date[] = []
+  const cursor = new Date(start)
+  cursor.setHours(0, 0, 0, 0)
+  while (cursor <= end) {
+    days.push(new Date(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return days
 }
 
 function weekLabel(weekStart: Date): string {
@@ -89,6 +137,9 @@ export function DailyTracksPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [weekStart, setWeekStart] = useState(() => startOfDefaultWindow(new Date()))
+  const [viewMode, setViewMode] = useState<ViewMode>('week')
+  const [monthStart, setMonthStart] = useState(() => startOfMonth(new Date()))
+  const [yearValue, setYearValue] = useState(() => new Date().getFullYear())
   const [modalState, setModalState] = useState<ModalState | null>(null)
   const [topicId, setTopicId] = useState('')
   const [comment, setComment] = useState('')
@@ -98,6 +149,7 @@ export function DailyTracksPage() {
   const [saving, setSaving] = useState(false)
   const [deletingTrackId, setDeletingTrackId] = useState<number | null>(null)
   const [dragSelection, setDragSelection] = useState<DragSelection | null>(null)
+  const [hoveredBoardCell, setHoveredBoardCell] = useState<HoveredBoardCell | null>(null)
   const activePointerIdRef = useRef<number | null>(null)
 
   const weekDays = useMemo(
@@ -108,7 +160,6 @@ export function DailyTracksPage() {
     () =>
       ({
         '--day-count': String(weekDays.length),
-        '--hour-slot-height': `${HOUR_SLOT_HEIGHT_PX}px`,
       }) as CSSProperties,
     [weekDays.length],
   )
@@ -118,13 +169,44 @@ export function DailyTracksPage() {
     return now
   }, [])
 
-  async function loadTracksForWeek(targetWeekStart: Date) {
+  const visibleRange = useMemo(() => {
+    if (viewMode === 'month') {
+      const start = startOfMonth(monthStart)
+      const end = endOfMonth(start)
+      return {
+        start,
+        end,
+        label: start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+      }
+    }
+
+    if (viewMode === 'year') {
+      const start = startOfYear(yearValue)
+      const end = endOfYear(yearValue)
+      return {
+        start,
+        end,
+        label: String(yearValue),
+      }
+    }
+
+    const start = weekStart
+    const end = addDays(weekStart, VISIBLE_DAY_COUNT - 1)
+    return { start, end, label: weekLabel(weekStart) }
+  }, [viewMode, monthStart, yearValue, weekStart])
+
+  const boardDays = useMemo(
+    () => enumerateDays(visibleRange.start, visibleRange.end),
+    [visibleRange],
+  )
+
+  async function loadTracksForRange(start: Date, end: Date) {
     setLoading(true)
     setError(null)
 
     try {
-      const startDate = toDateKey(targetWeekStart)
-      const endDate = toDateKey(addDays(targetWeekStart, VISIBLE_DAY_COUNT - 1))
+      const startDate = toDateKey(start)
+      const endDate = toDateKey(end)
       const data = await listDailyTracks({ startDate, endDate })
       setTracks(data)
     } catch (err) {
@@ -148,8 +230,8 @@ export function DailyTracksPage() {
   }, [])
 
   useEffect(() => {
-    void loadTracksForWeek(weekStart)
-  }, [weekStart])
+    void loadTracksForRange(visibleRange.start, visibleRange.end)
+  }, [visibleRange])
 
   useEffect(() => {
     function clearDrag() {
@@ -163,6 +245,7 @@ export function DailyTracksPage() {
       window.removeEventListener('blur', clearDrag)
     }
   }, [])
+
 
   const topicNameById = useMemo(() => {
     const map = new Map<number, string>()
@@ -303,7 +386,6 @@ export function DailyTracksPage() {
       if (!current || current.dayKey !== toDateKey(day)) {
         return null
       }
-
       const startHour = Math.min(current.anchorHour, hour)
       const duration = Math.abs(current.anchorHour - hour) + 1
       openCreateModal(current.day, startHour, duration)
@@ -378,18 +460,16 @@ export function DailyTracksPage() {
     if (!dragSelection || dragSelection.dayKey !== toDateKey(day)) {
       return false
     }
-
     const { anchorHour, currentHour } = dragSelection
     if (anchorHour === currentHour) {
       return hour === anchorHour
     }
-
     if (currentHour > anchorHour) {
       return hour >= anchorHour && hour <= currentHour
     }
-
     return hour >= currentHour && hour <= anchorHour
   }
+
 
   async function submitModal() {
     if (!modalState) {
@@ -455,7 +535,7 @@ export function DailyTracksPage() {
       }
 
       closeModal()
-      await loadTracksForWeek(weekStart)
+      await loadTracksForRange(visibleRange.start, visibleRange.end)
     } catch (err) {
       setSaveError(getErrorMessage(err))
     } finally {
@@ -473,7 +553,7 @@ export function DailyTracksPage() {
     try {
       await deleteDailyTrack(modalState.track.id)
       closeModal()
-      await loadTracksForWeek(weekStart)
+      await loadTracksForRange(visibleRange.start, visibleRange.end)
     } catch (err) {
       setSaveError(getErrorMessage(err))
     } finally {
@@ -491,12 +571,48 @@ export function DailyTracksPage() {
     setDeletingTrackId(track.id)
     try {
       await deleteDailyTrack(track.id)
-      await loadTracksForWeek(weekStart)
+      await loadTracksForRange(visibleRange.start, visibleRange.end)
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {
       setDeletingTrackId(null)
     }
+  }
+
+  function goPreviousRange() {
+    if (viewMode === 'month') {
+      setMonthStart((current) => startOfMonth(addMonths(current, -1)))
+      return
+    }
+    if (viewMode === 'year') {
+      setYearValue((current) => current - 1)
+      return
+    }
+    setWeekStart((current) => addDays(current, -VISIBLE_DAY_COUNT))
+  }
+
+  function goTodayRange() {
+    if (viewMode === 'month') {
+      setMonthStart(startOfMonth(new Date()))
+      return
+    }
+    if (viewMode === 'year') {
+      setYearValue(new Date().getFullYear())
+      return
+    }
+    setWeekStart(startOfDefaultWindow(new Date()))
+  }
+
+  function goNextRange() {
+    if (viewMode === 'month') {
+      setMonthStart((current) => startOfMonth(addMonths(current, 1)))
+      return
+    }
+    if (viewMode === 'year') {
+      setYearValue((current) => current + 1)
+      return
+    }
+    setWeekStart((current) => addDays(current, VISIBLE_DAY_COUNT))
   }
 
   return (
@@ -506,27 +622,56 @@ export function DailyTracksPage() {
       <div className="panel calendar-panel">
         <div className="week-head">
           <h3>Calendar Board</h3>
-          <p className="calendar-month">{weekLabel(weekStart)}</p>
+          <p className="calendar-month">{visibleRange.label}</p>
+        </div>
+        <div className="view-switch" role="tablist" aria-label="View mode">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'week'}
+            className={`view-switch-btn ${viewMode === 'week' ? 'active' : ''}`}
+            onClick={() => setViewMode('week')}
+          >
+            Week
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'month'}
+            className={`view-switch-btn ${viewMode === 'month' ? 'active' : ''}`}
+            onClick={() => setViewMode('month')}
+          >
+            Month
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'year'}
+            className={`view-switch-btn ${viewMode === 'year' ? 'active' : ''}`}
+            onClick={() => setViewMode('year')}
+          >
+            Year
+          </button>
         </div>
         <div className="calendar-toolbar">
           <button
             type="button"
             className="toolbar-btn"
-            onClick={() => setWeekStart(addDays(weekStart, -VISIBLE_DAY_COUNT))}
+            onClick={goPreviousRange}
           >
             Previous
           </button>
           <button
             type="button"
             className="toolbar-btn toolbar-btn-primary"
-            onClick={() => setWeekStart(startOfDefaultWindow(new Date()))}
+            onClick={goTodayRange}
           >
-            Today Window
+            {viewMode === 'week' ? 'Today Window' : viewMode === 'month' ? 'This Month' : 'This Year'}
           </button>
           <button
             type="button"
             className="toolbar-btn"
-            onClick={() => setWeekStart(addDays(weekStart, VISIBLE_DAY_COUNT))}
+            onClick={goNextRange}
           >
             Next
           </button>
@@ -535,162 +680,270 @@ export function DailyTracksPage() {
         {error && <p className="error">{error}</p>}
         {!loading && !error && (
           <>
-            <div className="schedule-grid schedule-head" style={scheduleGridStyle}>
-              <span className="hour-cell" />
-              {weekDays.map((day) => (
-                <span
-                  key={toDateKey(day)}
-                  className={`day-cell ${isSameDate(day, today) ? 'is-today' : ''}`}
-                >
-                  {day.toLocaleDateString(undefined, { weekday: 'short' })} {day.getDate()}
-                </span>
-              ))}
-            </div>
-            <div className={`schedule-body ${dragSelection ? 'is-dragging' : ''}`}>
-              <div className="schedule-board" style={scheduleGridStyle}>
-                <div className="hour-lane">
-                  {Array.from({ length: 24 }, (_, hour) => (
-                    <span key={`hour-${hour}`} className="hour-cell">
-                      {String(hour).padStart(2, '0')}:00
+            {viewMode === 'week' ? (
+              <>
+                <div className="schedule-grid schedule-head" style={scheduleGridStyle}>
+                  <span className="hour-cell" />
+                  {weekDays.map((day) => (
+                    <span
+                      key={toDateKey(day)}
+                      className={`day-cell ${isSameDate(day, today) ? 'is-today' : ''}`}
+                    >
+                      {day.toLocaleDateString(undefined, { weekday: 'short' })} {day.getDate()}
                     </span>
                   ))}
                 </div>
-                {weekDays.map((day) => {
-                  const dayKey = toDateKey(day)
-                  const mergedSegments = mergedSegmentsByDay.get(dayKey) ?? []
+                <div className={`schedule-body ${dragSelection ? 'is-dragging' : ''}`}>
+                  <div className="schedule-board" style={scheduleGridStyle}>
+                    <div className="hour-lane">
+                      {Array.from({ length: 24 }, (_, hour) => (
+                        <span key={`hour-${hour}`} className="hour-cell">
+                          {String(hour).padStart(2, '0')}:00
+                        </span>
+                      ))}
+                    </div>
+                    {weekDays.map((day) => {
+                      const dayKey = toDateKey(day)
+                      const mergedSegments = mergedSegmentsByDay.get(dayKey) ?? []
 
-                  return (
-                    <div
-                      key={dayKey}
-                      className={`day-lane ${isSameDate(day, today) ? 'today-slot' : ''}`}
-                    >
-                      {Array.from({ length: 24 }, (_, hour) => {
-                        const entries = tracksBySlot.get(slotKey(day, hour)) ?? []
-                        if (entries.length === 0) {
-                          return (
-                            <button
-                              type="button"
-                              key={slotKey(day, hour)}
-                              data-slot-day={dayKey}
-                              data-slot-hour={String(hour)}
-                              className={`slot empty-slot ${
-                                isHourSelectedByDrag(day, hour) ? 'drag-selected' : ''
-                              }`}
-                              onPointerDown={(event) => onSlotPointerDown(day, hour, event)}
-                              onPointerEnter={(event) => onSlotPointerEnter(day, hour, event)}
-                              onPointerMove={(event) => onSlotPointerMove(day, hour, event)}
-                              onPointerUp={(event) => onSlotPointerUp(day, hour, event)}
-                              onPointerCancel={onSlotPointerCancel}
-                            >
-                              +
-                            </button>
-                          )
-                        }
+                      return (
+                        <div
+                          key={dayKey}
+                          className={`day-lane ${isSameDate(day, today) ? 'today-slot' : ''}`}
+                        >
+                          {Array.from({ length: 24 }, (_, hour) => {
+                            const entries = tracksBySlot.get(slotKey(day, hour)) ?? []
+                            if (entries.length === 0) {
+                              return (
+                                <button
+                                  type="button"
+                                  key={slotKey(day, hour)}
+                                  data-slot-day={dayKey}
+                                  data-slot-hour={String(hour)}
+                                  className={`slot empty-slot ${
+                                    isHourSelectedByDrag(day, hour) ? 'drag-selected' : ''
+                                  }`}
+                                  onPointerDown={(event) => onSlotPointerDown(day, hour, event)}
+                                  onPointerEnter={(event) => onSlotPointerEnter(day, hour, event)}
+                                  onPointerMove={(event) => onSlotPointerMove(day, hour, event)}
+                                  onPointerUp={(event) => onSlotPointerUp(day, hour, event)}
+                                  onPointerCancel={onSlotPointerCancel}
+                                >
+                                  +
+                                </button>
+                              )
+                            }
 
-                        if (entries.length === 1) {
-                          const track = entries[0]
-                          const isDeleting = deletingTrackId === track.id
-                          const topicColor =
-                            topicColorById.get(track.topic_id) ?? DEFAULT_TOPIC_COLOR
-                          return (
-                            <div
-                              key={slotKey(day, hour)}
-                              className="slot occupied-slot"
-                              style={{ '--topic-color': topicColor } as CSSProperties}
-                            >
-                              <button
-                                type="button"
-                                className="occupied-slot-edit-hit"
-                                onClick={() => openEditModal(track)}
-                                aria-label={`Edit track at ${String(hour).padStart(2, '0')}:00`}
-                                title="Edit this hour"
-                              />
-                              <button
-                                type="button"
-                                className="occupied-slot-delete"
-                                disabled={isDeleting}
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  void deleteTrackQuick(track)
-                                }}
-                                aria-label={`Delete track at ${String(hour).padStart(2, '0')}:00`}
-                                title="Delete this hour"
-                              >
-                                {isDeleting ? '…' : '×'}
-                              </button>
-                            </div>
-                          )
-                        }
-
-                        return (
-                          <div key={slotKey(day, hour)} className="slot filled-slot multi-slot">
-                            {entries.map((track) => {
+                            if (entries.length === 1) {
+                              const track = entries[0]
+                              const isDeleting = deletingTrackId === track.id
                               const topicColor =
                                 topicColorById.get(track.topic_id) ?? DEFAULT_TOPIC_COLOR
                               return (
-                                <button
-                                  key={track.id}
-                                  type="button"
-                                  className="slot-item slot-item-button"
+                                <div
+                                  key={slotKey(day, hour)}
+                                  className="slot occupied-slot"
                                   style={{ '--topic-color': topicColor } as CSSProperties}
-                                  onClick={() => openEditModal(track)}
+                                >
+                                  <button
+                                    type="button"
+                                    className="occupied-slot-edit-hit"
+                                    onClick={() => openEditModal(track)}
+                                    aria-label={`Edit track at ${String(hour).padStart(2, '0')}:00`}
+                                    title="Edit this hour"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="occupied-slot-delete"
+                                    disabled={isDeleting}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      void deleteTrackQuick(track)
+                                    }}
+                                    aria-label={`Delete track at ${String(hour).padStart(2, '0')}:00`}
+                                    title="Delete this hour"
+                                  >
+                                    {isDeleting ? '…' : '×'}
+                                  </button>
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <div key={slotKey(day, hour)} className="slot filled-slot multi-slot">
+                                {entries.map((track) => {
+                                  const topicColor =
+                                    topicColorById.get(track.topic_id) ?? DEFAULT_TOPIC_COLOR
+                                  return (
+                                    <button
+                                      key={track.id}
+                                      type="button"
+                                      className="slot-item slot-item-button"
+                                      style={{ '--topic-color': topicColor } as CSSProperties}
+                                      onClick={() => openEditModal(track)}
+                                    >
+                                      <strong>
+                                        {parseApiDateTime(track.start_time).toLocaleTimeString([], {
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })}
+                                      </strong>
+                                      <span>{topicNameById.get(track.topic_id) ?? 'Topic'}</span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })}
+                          <div className="merged-overlay">
+                            {mergedSegments.map(({ track, startHour, endHourExclusive }) => {
+                              const topicColor =
+                                topicColorById.get(track.topic_id) ?? DEFAULT_TOPIC_COLOR
+                              const durationHours = endHourExclusive - startHour
+                              const isCompact = durationHours <= 1
+                              return (
+                                <div
+                                  key={`${track.id}-${startHour}-${endHourExclusive}`}
+                                  className={`slot-item slot-item-button merged-track-item ${
+                                    isCompact ? 'compact' : ''
+                                  }`}
+                                  style={
+                                    {
+                                      '--topic-color': topicColor,
+                                      top: `${startHour * 64}px`,
+                                      height: `${durationHours * 64}px`,
+                                    } as CSSProperties
+                                  }
                                 >
                                   <strong>
-                                    {parseApiDateTime(track.start_time).toLocaleTimeString([], {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
+                                    {String(startHour).padStart(2, '0')}:00 -{' '}
+                                    {String(endHourExclusive).padStart(2, '0')}:00
                                   </strong>
                                   <span>{topicNameById.get(track.topic_id) ?? 'Topic'}</span>
-                                </button>
+                                  {!isCompact && (
+                                    <span className="track-merge-badge">
+                                      {durationHours} {durationHours === 1 ? 'hour' : 'hours'}
+                                    </span>
+                                  )}
+                                </div>
                               )
                             })}
                           </div>
-                        )
-                      })}
-                      <div className="merged-overlay">
-                        {mergedSegments.map(({ track, startHour, endHourExclusive }) => {
-                          const topicColor =
-                            topicColorById.get(track.topic_id) ?? DEFAULT_TOPIC_COLOR
-                          const durationHours = endHourExclusive - startHour
-                          const isCompact = durationHours <= 1
-                          return (
-                            <div
-                              key={`${track.id}-${startHour}-${endHourExclusive}`}
-                              className={`slot-item slot-item-button merged-track-item ${
-                                isCompact ? 'compact' : ''
-                              }`}
-                              style={
-                                {
-                                  '--topic-color': topicColor,
-                                  top: `${startHour * HOUR_SLOT_HEIGHT_PX}px`,
-                                  height: `${durationHours * HOUR_SLOT_HEIGHT_PX}px`,
-                                } as CSSProperties
-                              }
-                            >
-                              <strong>
-                                {String(startHour).padStart(2, '0')}:00 -{' '}
-                                {String(endHourExclusive).padStart(2, '0')}:00
-                              </strong>
-                              <span>{topicNameById.get(track.topic_id) ?? 'Topic'}</span>
-                              {!isCompact && (
-                                <span className="track-merge-badge">
-                                  {durationHours} {durationHours === 1 ? 'hour' : 'hours'}
-                                </span>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-            {tracks.length === 0 && (
-              <p className="empty-hint">
-                No records yet. Click any empty hour slot to create one.
-              </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+                {tracks.length === 0 && (
+                  <p className="empty-hint">No records yet. Click any empty hour slot to create one.</p>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="hour-matrix-wrap">
+                  <div className="hour-matrix">
+                    <span className="matrix-corner" />
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <span key={`head-${hour}`} className="matrix-hour-head">
+                        {String(hour).padStart(2, '0')}
+                      </span>
+                    ))}
+
+                    {boardDays.map((day) => {
+                      const dayKey = toDateKey(day)
+                      return (
+                        <div key={`row-${dayKey}`} className="matrix-row-fragment">
+                          <span className={`matrix-day-label ${isSameDate(day, today) ? 'is-today' : ''}`}>
+                            {day.toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </span>
+                          {Array.from({ length: 24 }, (_, hour) => {
+                            const entries = tracksBySlot.get(slotKey(day, hour)) ?? []
+                            const uniqueColors = Array.from(
+                              new Set(
+                                entries.map((item) => topicColorById.get(item.topic_id) ?? DEFAULT_TOPIC_COLOR),
+                              ),
+                            )
+                            const colorPaint =
+                              uniqueColors.length <= 1
+                                ? (uniqueColors[0] ?? '#f1f5f9')
+                                : `linear-gradient(135deg, ${uniqueColors
+                                    .map((color, index) => {
+                                      const start = (index / uniqueColors.length) * 100
+                                      const end = ((index + 1) / uniqueColors.length) * 100
+                                      return `${color} ${start}% ${end}%`
+                                    })
+                                    .join(', ')})`
+
+                            return (
+                              <button
+                                type="button"
+                                key={`${dayKey}-${hour}`}
+                                className={`matrix-cell ${entries.length > 0 ? 'has-data' : 'is-empty'}`}
+                                style={{ '--cell-color': colorPaint } as CSSProperties}
+                                onMouseEnter={() => setHoveredBoardCell({ day, hour, entries })}
+                                onFocus={() => setHoveredBoardCell({ day, hour, entries })}
+                                onMouseLeave={() =>
+                                  setHoveredBoardCell((current) =>
+                                    current && current.day.getTime() === day.getTime() && current.hour === hour
+                                      ? null
+                                      : current,
+                                  )
+                                }
+                                onBlur={() =>
+                                  setHoveredBoardCell((current) =>
+                                    current && current.day.getTime() === day.getTime() && current.hour === hour
+                                      ? null
+                                      : current,
+                                  )
+                                }
+                                onClick={() => {
+                                  if (entries.length === 0) {
+                                    openCreateModal(day, hour, 1)
+                                    return
+                                  }
+                                  openEditModal(entries[0])
+                                }}
+                                aria-label={`${day.toLocaleDateString()} ${String(hour).padStart(2, '0')}:00`}
+                              />
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div className="matrix-hover-panel" aria-live="polite">
+                  {hoveredBoardCell ? (
+                    <>
+                      <p className="matrix-hover-title">
+                        {hoveredBoardCell.day.toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}{' '}
+                        {String(hoveredBoardCell.hour).padStart(2, '0')}:00
+                      </p>
+                      {hoveredBoardCell.entries.length === 0 ? (
+                        <p>No track in this hour.</p>
+                      ) : (
+                        <p>
+                          {hoveredBoardCell.entries
+                            .map((track) => topicNameById.get(track.topic_id) ?? 'Topic')
+                            .join(' / ')}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="density-hint">Hover any cell to preview details.</p>
+                  )}
+                </div>
+                {tracks.length === 0 && (
+                  <p className="empty-hint">No records yet. Click any hour cell to create one.</p>
+                )}
+              </>
             )}
           </>
         )}

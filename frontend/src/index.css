@@ -619,6 +619,39 @@ button:disabled {
   gap: 0.6rem;
 }
 
+.daily-tracks-page .view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid #d4dcea;
+  border-radius: 999px;
+  background: #f8fbff;
+}
+
+.daily-tracks-page .view-switch-btn {
+  border: none;
+  background: transparent;
+  color: #475569;
+  border-radius: 999px;
+  padding: 0.38rem 0.72rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.daily-tracks-page .view-switch-btn:hover {
+  transform: none;
+  box-shadow: none;
+  background: #edf4ff;
+  color: #1e3a8a;
+}
+
+.daily-tracks-page .view-switch-btn.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
 .daily-tracks-page .toolbar-btn {
   background: #ffffff;
   color: #334155;
@@ -649,6 +682,7 @@ button:disabled {
 }
 
 .daily-tracks-page .toolbar-btn:focus-visible,
+.daily-tracks-page .view-switch-btn:focus-visible,
 .daily-tracks-page .occupied-slot-edit-hit:focus-visible,
 .daily-tracks-page .occupied-slot-delete:focus-visible {
   outline: 2px solid #2563eb;
@@ -783,6 +817,214 @@ button:disabled {
 .daily-tracks-page .track-merge-badge {
   margin-top: 0.12rem;
   font-weight: 600;
+}
+
+.daily-tracks-page .hour-matrix-wrap {
+  border: 1px solid #d9e2f2;
+  border-radius: 14px;
+  background: #ffffff;
+  max-height: 72vh;
+  overflow: auto;
+  padding: 0.6rem;
+}
+
+.daily-tracks-page .hour-matrix {
+  display: grid;
+  grid-template-columns: 88px repeat(24, minmax(16px, 1fr));
+  gap: 4px;
+  min-width: 860px;
+}
+
+.daily-tracks-page .matrix-row-fragment {
+  display: contents;
+}
+
+.daily-tracks-page .matrix-corner {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  border-radius: 8px;
+  background: #f8fbff;
+  border: 1px solid #e2e8f0;
+}
+
+.daily-tracks-page .matrix-hour-head {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  background: #f8fbff;
+  border: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.daily-tracks-page .matrix-day-label {
+  height: 18px;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 0.25rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  color: #475569;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #ffffff;
+}
+
+.daily-tracks-page .matrix-day-label.is-today {
+  color: #1d4ed8;
+  font-weight: 700;
+  background: #eff6ff;
+}
+
+.daily-tracks-page .matrix-cell {
+  width: 100%;
+  min-width: 0;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  box-shadow: none;
+  padding: 0;
+}
+
+.daily-tracks-page .matrix-cell.is-empty {
+  background: #f8fafc;
+  border-color: #e7edf5;
+}
+
+.daily-tracks-page .matrix-cell.has-data {
+  background: var(--cell-color, #cbd5e1);
+  border-color: color-mix(in oklab, var(--cell-color, #cbd5e1) 65%, #ffffff);
+}
+
+.daily-tracks-page .matrix-cell:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(30, 64, 175, 0.14);
+}
+
+.daily-tracks-page .matrix-cell:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.daily-tracks-page .matrix-hover-panel {
+  margin-top: 0.7rem;
+  border: 1px solid #d9e2f2;
+  border-radius: 10px;
+  background: #f8fbff;
+  min-height: 42px;
+  padding: 0.45rem 0.6rem;
+}
+
+.daily-tracks-page .matrix-hover-panel p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #334155;
+}
+
+.daily-tracks-page .matrix-hover-title {
+  color: #1e3a8a !important;
+  font-weight: 700;
+  margin-bottom: 0.12rem !important;
+}
+
+.daily-tracks-page .density-view {
+  border: 1px solid #d9e2f2;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.daily-tracks-page .density-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 0.1rem 0.1rem 0.35rem;
+}
+
+.daily-tracks-page .density-day {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.daily-tracks-page .density-day.month-start {
+  margin-left: 8px;
+}
+
+.daily-tracks-page .density-day.month-start::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: #cbd5e1;
+}
+
+.daily-tracks-page .density-day-swatch {
+  width: 14px;
+  height: 40px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in oklab, var(--density-color, #e5e7eb) 65%, #ffffff);
+  background: var(--density-color, #e5e7eb);
+  box-shadow: none;
+  padding: 0;
+}
+
+.daily-tracks-page .density-day-swatch:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.daily-tracks-page .density-day.has-data .density-day-swatch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(30, 64, 175, 0.14);
+}
+
+.daily-tracks-page .density-day.is-empty .density-day-swatch {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.daily-tracks-page .density-details {
+  min-height: 40px;
+  border: 1px solid #e2e8f0;
+  background: #f8fbff;
+  border-radius: 10px;
+  padding: 0.45rem 0.6rem;
+  color: #334155;
+}
+
+.daily-tracks-page .density-details p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.daily-tracks-page .density-details-date {
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 0.15rem !important;
+}
+
+.daily-tracks-page .density-hint {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
 }
 
 .modal-backdrop {
