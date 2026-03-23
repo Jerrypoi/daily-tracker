@@ -831,7 +831,8 @@ button:disabled {
 .daily-tracks-page .hour-matrix {
   display: grid;
   grid-template-columns: 88px repeat(24, minmax(16px, 1fr));
-  gap: 4px;
+  column-gap: 0;
+  row-gap: 4px;
   min-width: 860px;
 }
 
@@ -890,8 +891,8 @@ button:disabled {
   width: 100%;
   min-width: 0;
   height: 18px;
-  border-radius: 5px;
-  border: 1px solid #e2e8f0;
+  border-radius: 0;
+  border: none;
   background: #f1f5f9;
   box-shadow: none;
   padding: 0;
@@ -899,12 +900,10 @@ button:disabled {
 
 .daily-tracks-page .matrix-cell.is-empty {
   background: #f8fafc;
-  border-color: #e7edf5;
 }
 
 .daily-tracks-page .matrix-cell.has-data {
   background: var(--cell-color, #cbd5e1);
-  border-color: color-mix(in oklab, var(--cell-color, #cbd5e1) 65%, #ffffff);
 }
 
 .daily-tracks-page .matrix-cell:hover {
