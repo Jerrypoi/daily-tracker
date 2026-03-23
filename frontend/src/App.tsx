@@ -7,16 +7,16 @@ function App() {
         <h1>Daily Tracker</h1>
         <nav className="nav">
           <NavLink
-            to="/topics"
-            className={({ isActive }) => (isActive ? 'active' : undefined)}
-          >
-            Topics
-          </NavLink>
-          <NavLink
             to="/daily-tracks"
             className={({ isActive }) => (isActive ? 'active' : undefined)}
           >
             Daily Tracks
+          </NavLink>
+          <NavLink
+            to="/topics"
+            className={({ isActive }) => (isActive ? 'active' : undefined)}
+          >
+            Topics
           </NavLink>
         </nav>
       </header>

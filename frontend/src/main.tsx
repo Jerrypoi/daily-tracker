@@ -15,9 +15,9 @@ const router = createBrowserRouter([
     path: '/',
     element: <App />,
     children: [
-      { index: true, element: <Navigate to="/topics" replace /> },
-      { path: 'topics', element: <TopicsPage /> },
       { path: 'daily-tracks', element: <DailyTracksPage /> },
+      { path: 'topics', element: <TopicsPage /> },
+      { index: true, element: <Navigate to="/daily-tracks" replace /> },
     ],
   },
 ])
