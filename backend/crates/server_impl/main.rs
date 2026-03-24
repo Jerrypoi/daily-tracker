@@ -34,7 +34,12 @@ fn register_routes() -> Router {
             get(handler::get_daily_track_by_id)
                 .put(handler::update_daily_track)
                 .delete(handler::delete_daily_track),
-        );
+        )
+        .route_layer(middleware::from_fn(server_auth::auth_middleware));
+
+    let auth_routes = Router::new()
+        .route("/register", axum::routing::post(handler::register))
+        .route("/login", axum::routing::post(handler::login));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -48,6 +53,7 @@ fn register_routes() -> Router {
         .allow_headers(Any);
 
     Router::new()
+        .nest("/api/v1/auth", auth_routes)
         .nest("/api/v1", api_routes)
         .layer(cors)
         .layer(middleware::from_fn(request_logger::log_request))

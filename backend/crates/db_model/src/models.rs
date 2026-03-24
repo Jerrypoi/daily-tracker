@@ -17,6 +17,7 @@ pub struct Topic {
     pub created_at: NaiveDateTime,
     pub updated_at: Option<NaiveDateTime>,
     pub parent_topic_id: Option<Vec<u8>>,
+    pub user_id: Option<Vec<u8>>,
 }
 
 #[derive(Queryable, Selectable, Insertable)]
@@ -29,18 +30,19 @@ pub struct DailyTrack {
     pub updated_at: Option<NaiveDateTime>,
     pub topic_id: Option<Vec<u8>>,
     pub comment: Option<String>,
+    pub user_id: Option<Vec<u8>>,
 }
 
 impl DailyTrack {
-    pub fn new(start_time: NaiveDateTime, topic_id: Option<Vec<u8>>, comment: Option<String>) -> Self {
+    pub fn new(start_time: NaiveDateTime, topic_id: Option<Vec<u8>>, comment: Option<String>, user_id: Option<Vec<u8>>) -> Self {
         let id = Uuid::new_v4();
-
 
         let id = id.as_bytes().to_vec();
         Self {
             start_time,
             topic_id,
             comment,
+            user_id,
             created_at: Utc::now().naive_utc(),
             updated_at: None,
             id: id,
@@ -67,8 +69,9 @@ mod tests {
         let start_time = Utc::now().naive_utc();
         let topic_id = Some(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let comment = Some("test comment".to_string());
+        let user_id = None;
 
-        let track = DailyTrack::new(start_time, topic_id.clone(), comment.clone());
+        let track = DailyTrack::new(start_time, topic_id.clone(), comment.clone(), user_id.clone());
 
         // id should be a UUID stored as 16 bytes
         assert_eq!(track.id.len(), 16);
@@ -88,7 +91,7 @@ mod tests {
     fn daily_track_display_includes_id_and_comment() {
         let start_time = Utc::now().naive_utc();
         let comment = Some("display test".to_string());
-        let track = DailyTrack::new(start_time, None, comment.clone());
+        let track = DailyTrack::new(start_time, None, comment.clone(), None);
 
         let rendered = track.to_string();
 
@@ -101,3 +104,13 @@ mod tests {
     }
 }
 
+#[derive(Queryable, Selectable, Insertable)]
+#[diesel(table_name = crate::schema::users)]
+#[diesel(check_for_backend(diesel::mysql::Mysql))]
+pub struct User {
+    pub id: Vec<u8>,
+    pub username: String,
+    pub password_hash: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: Option<NaiveDateTime>,
+}

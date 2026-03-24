@@ -1,0 +1,13 @@
+CREATE TABLE users (
+    id BINARY(16) PRIMARY KEY,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME ON UPDATE CURRENT_TIMESTAMP
+);
+
+ALTER TABLE topic ADD COLUMN user_id BINARY(16);
+ALTER TABLE daily_track ADD COLUMN user_id BINARY(16);
+
+ALTER TABLE topic ADD CONSTRAINT fk_topic_user FOREIGN KEY (user_id) REFERENCES users(id);
+ALTER TABLE daily_track ADD CONSTRAINT fk_daily_track_user FOREIGN KEY (user_id) REFERENCES users(id);

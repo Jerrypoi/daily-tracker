@@ -1,5 +1,5 @@
 import { DailyTrackService } from './generated'
-import type { DailyTrack } from './generated'
+// Removed unused import
 
 export type DailyTrackFilter = {
   startDate?: string
@@ -18,12 +18,7 @@ export type UpdateDailyTrackInput = {
   comment?: string
 }
 
-const fallbackApiBaseUrl = 'http://localhost:8080/api/v1'
-
-function apiBaseUrl() {
-  const value = import.meta.env.VITE_API_BASE_URL
-  return value && value.trim() ? value : fallbackApiBaseUrl
-}
+// Deleted unused url helpers
 
 function parseErrorBody(body: unknown): string {
   if (typeof body === 'object' && body !== null) {
@@ -52,31 +47,21 @@ export function createDailyTrack(input: DailyTrackInput) {
 }
 
 export async function updateDailyTrack(id: number, input: UpdateDailyTrackInput) {
-  const response = await fetch(`${apiBaseUrl()}/daily-tracks/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  try {
+    return await DailyTrackService.updateDailyTrack(id, {
       topic_id: input.topicId,
-      comment: input.comment,
-    }),
-  })
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(parseErrorBody(body))
+      comment: input.comment
+    })
+  } catch (err: any) {
+    throw new Error(parseErrorBody(err?.body || err))
   }
-
-  return (await response.json()) as DailyTrack
 }
 
 export async function deleteDailyTrack(id: number) {
-  const response = await fetch(`${apiBaseUrl()}/daily-tracks/${id}`, {
-    method: 'DELETE',
-  })
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(parseErrorBody(body))
+  try {
+    await DailyTrackService.deleteDailyTrack(id)
+  } catch (err: any) {
+    throw new Error(parseErrorBody(err?.body || err))
   }
 }
 

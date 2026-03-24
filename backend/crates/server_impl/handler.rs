@@ -1,9 +1,10 @@
-use axum::extract::{Path, Query};
+use axum::extract::{Path, Query, Extension};
 use axum::http::StatusCode;
 use axum::Json;
 use chrono::NaiveDate;
 use db_model::models::DEFAULT_TOPIC_DISPLAY_COLOR;
 use models::*;
+use bcrypt::{hash, verify, DEFAULT_COST};
 
 // --- Topic Handlers ---
 fn is_valid_hex_color(value: &str) -> bool {
@@ -16,9 +17,10 @@ fn is_valid_hex_color(value: &str) -> bool {
 }
 
 pub async fn get_topics(
+    Extension(user_id): Extension<Vec<u8>>,
     Query(params): Query<GetTopicsParams>,
 ) -> Result<Json<Vec<Topic>>, ApiError> {
-    let topics = db::get_topics(params.parent_topic_id)
+    let topics = db::get_topics(params.parent_topic_id, Some(user_id))
         .map_err(|e| ApiError::InternalServerError(format!("Failed to retrieve topics: {}", e)))?;
 
     let topics: Vec<Topic> = topics.iter().map(|t| db_topic_to_topic(t)).collect();
@@ -26,6 +28,7 @@ pub async fn get_topics(
 }
 
 pub async fn create_topic(
+    Extension(user_id): Extension<Vec<u8>>,
     Json(req): Json<CreateTopicRequest>,
 ) -> Result<(StatusCode, Json<Topic>), ApiError> {
     if req.topic_name.trim().is_empty() {
@@ -54,7 +57,7 @@ pub async fn create_topic(
         ));
     }
 
-    let db_topic = db::create_topic(req.topic_name, display_color, parent_topic_id_binary).map_err(|e| {
+    let db_topic = db::create_topic(req.topic_name, display_color, parent_topic_id_binary, Some(user_id)).map_err(|e| {
         match e {
             diesel::result::Error::DatabaseError(
                 diesel::result::DatabaseErrorKind::UniqueViolation,
@@ -110,6 +113,7 @@ pub async fn update_topic(
 // --- DailyTrack Handlers ---
 
 pub async fn get_daily_tracks(
+    Extension(user_id): Extension<Vec<u8>>,
     Query(params): Query<GetDailyTracksParams>,
 ) -> Result<Json<Vec<DailyTrack>>, ApiError> {
     let start_date = params
@@ -136,7 +140,7 @@ pub async fn get_daily_tracks(
         })
         .transpose()?;
 
-    let tracks = db::get_daily_tracks(start_date, end_date, params.topic_id)
+    let tracks = db::get_daily_tracks(start_date, end_date, params.topic_id, Some(user_id))
         .map_err(|e| {
             ApiError::InternalServerError(format!("Failed to retrieve daily tracks: {}", e))
         })?;
@@ -146,6 +150,7 @@ pub async fn get_daily_tracks(
 }
 
 pub async fn create_daily_track(
+    Extension(user_id): Extension<Vec<u8>>,
     Json(req): Json<CreateDailyTrackRequest>,
 ) -> Result<(StatusCode, Json<DailyTrack>), ApiError> {
     let minutes = req.start_time.format("%M").to_string();
@@ -170,7 +175,7 @@ pub async fn create_daily_track(
     let topic_id_binary = topic.map(|t| t.id);
 
     let db_track =
-        db::create_daily_track(start_time_naive, topic_id_binary, req.comment).map_err(|e| {
+        db::create_daily_track(start_time_naive, topic_id_binary, req.comment, Some(user_id)).map_err(|e| {
             match e {
                 diesel::result::Error::DatabaseError(
                     diesel::result::DatabaseErrorKind::UniqueViolation,
@@ -247,3 +252,38 @@ pub async fn delete_daily_track(Path(id): Path<u16>) -> Result<StatusCode, ApiEr
         )))
     }
 }
+
+pub async fn register(Json(req): Json<RegisterRequest>) -> Result<(StatusCode, Json<UserResponse>), ApiError> {
+    let password_hash = hash(&req.password, DEFAULT_COST)
+        .map_err(|e| ApiError::InternalServerError(format!("Failed to hash password: {}", e)))?;
+        
+    let user = db::create_user(req.username, password_hash).map_err(|e| match e {
+        diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
+            ApiError::Conflict("Username already exists".to_string())
+        }
+        _ => ApiError::InternalServerError(format!("Database error: {}", e)),
+    })?;
+    
+    let user_id_hex = hex::encode(&user.id);
+    
+    Ok((StatusCode::CREATED, Json(UserResponse { id: user_id_hex, username: user.username })))
+}
+
+pub async fn login(Json(req): Json<LoginRequest>) -> Result<Json<TokenResponse>, ApiError> {
+    let user = db::get_user_by_username(&req.username)
+        .map_err(|_| ApiError::InternalServerError("Database error".to_string()))?
+        .ok_or_else(|| ApiError::Unauthorized("Invalid username or password".to_string()))?;
+        
+    let valid = verify(&req.password, &user.password_hash)
+        .map_err(|_| ApiError::InternalServerError("Error verifying password".to_string()))?;
+        
+    if !valid {
+        return Err(ApiError::Unauthorized("Invalid username or password".to_string()));
+    }
+    
+    let token = crate::server_auth::create_jwt(&user.id)
+        .map_err(|_| ApiError::InternalServerError("Error generating token".to_string()))?;
+        
+    Ok(Json(TokenResponse { token }))
+}
+

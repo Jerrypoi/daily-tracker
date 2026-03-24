@@ -1,126 +1,73 @@
-// use swagger::{
-//     ApiError,
-//     Has,
-//     XSpanIdString};
-// use headers::authorization::{Basic, Bearer};
-// use openapi::{AuthenticationApi, Claims};
-// use crate::server::Server;
-// use jsonwebtoken::{decode, errors as JwtError, decode_header, DecodingKey, TokenData, Validation};
-// use swagger::auth::Authorization;
-// use log::{error, debug};
+use axum::{
+    body::Body,
+    extract::Request,
+    http::{header, StatusCode},
+    middleware::Next,
+    response::Response,
+};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 
-// // NOTE: Set environment variable RUST_LOG to the name of the executable (or "cargo run") to activate console logging for all loglevels.
-// //     See https://docs.rs/env_logger/latest/env_logger/  for more details
+static JWT_SECRET: Lazy<String> = Lazy::new(|| {
+    std::env::var("JWT_SECRET").unwrap_or_else(|_| "my_super_secret_jwt_key".to_string())
+});
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub sub: String, // user_id in hex string or raw string
+    pub exp: usize,
+}
 
-// /// Get a dummy claim with full permissions (all scopes) for testing purposes
-// fn full_permission_claim() -> Claims {
-//     // In this example code all available Scopes are added, so the current Bearer Token gets fully authorization.
-//     Claims {
-//         sub: "tester@acme.com".to_owned(),
-//         company: "ACME".to_owned(),
-//         iss: "mini-bank-IDP".to_owned(),
-//         aud: "org.acme.Resource_Server".to_string(),
-//         // added a very long expiry time
-//         exp: 10000000000,
-//         scopes:
-//           "".to_owned()
-//     }
-// }
+pub fn create_jwt(user_id: &[u8]) -> Result<String, jsonwebtoken::errors::Error> {
+    let exp = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::days(7))
+        .expect("valid timestamp")
+        .timestamp() as usize;
 
+    let claims = Claims {
+        sub: hex::encode(user_id),
+        exp,
+    };
 
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(JWT_SECRET.as_bytes()),
+    )
+}
 
-// /// Extract the data from a Bearer token using the provided Key (secret) and using the HS512-algorithm in this example.
-// fn extract_token_data(token: &str, key: &[u8]) -> Result<TokenData<Claims>, JwtError::Error> {
+pub async fn auth_middleware(mut req: Request<Body>, next: Next) -> Result<Response, StatusCode> {
+    if req.method() == axum::http::Method::OPTIONS {
+        return Ok(next.run(req).await);
+    }
 
-//     // Ensure that you set the correct algorithm and correct key.
-//     // See https://github.com/Keats/jsonwebtoken for more information.
-//     let header = decode_header(token)?;
-//     let validation = {
-//         let mut validation = Validation::new(header.alg);
-//         validation.set_audience(&["org.acme.Resource_Server"]);
-//         validation.validate_exp = true;
-//         validation
-//     };
+    let auth_header = req
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|header| header.to_str().ok());
 
-//     let token_data = decode::<Claims>(
-//         &token,
-//         &DecodingKey::from_secret(key),
-//         &validation,
-//     )?;
+    let auth_header = if let Some(auth_header) = auth_header {
+        auth_header
+    } else {
+        return Err(StatusCode::UNAUTHORIZED);
+    };
 
-//     Ok(token_data)
-// }
+    if !auth_header.starts_with("Bearer ") {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
 
-// /// Build a swagger-Authorization based on the claims (Assuming claims have been extracted from a validated token)
-// fn build_authorization(claims: Claims) -> Authorization {
-//     let mut scopes = std::collections::BTreeSet::<String>::new();
-//     claims
-//         .scopes
-//         .split(",")
-//         .map(|s| s.trim())
-//         .for_each(|s| {let _ = scopes.insert(s.to_string()); });
-//     let scopes = swagger::auth::Scopes::Some(scopes);
+    let token = &auth_header[7..];
 
-//     Authorization{
-//         subject: claims.sub,
-//         scopes,
-//         issuer: Some(claims.iss)}
-// }
+    let token_data = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(JWT_SECRET.as_bytes()),
+        &Validation::default(),
+    )
+    .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-// fn get_jwt_error_string(error: JwtError::Error) -> String {
-//     match error.kind() {
-//         JwtError::ErrorKind::InvalidSignature => "Incorrect token signature".to_owned(),
-//         JwtError::ErrorKind::InvalidAlgorithm => "The Algorithm is not correct".to_owned(),
-//         JwtError::ErrorKind::ExpiredSignature => "The token has expired".to_owned(),
-//         JwtError::ErrorKind::Base64(e) => format!("Base64 decode failed: {e}"),
-//         JwtError::ErrorKind::Json(e) => format!("JSON decoding: {e}"),
-//         JwtError::ErrorKind::Utf8(e) => format!("Invalid UTF-8: {e}"),
-//         _ => error.to_string()
-//     }
-// }
+    let user_id = hex::decode(&token_data.claims.sub).map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-
-// impl<C> AuthenticationApi for Server<C> where C: Has<XSpanIdString> + Send + Sync {
-
-//     /// Implementation of the method to map a Bearer-token to an Authorization
-//     fn bearer_authorization(&self, bearer: &Bearer) -> Result<Authorization, ApiError> {
-//         debug!("\tAuthorizationApi: Received Bearer-token, {bearer:#?}");
-
-//         match extract_token_data(&bearer.token(), b"secret") {
-//             Ok(auth_data) => {
-//                 debug!("\tUnpack auth_data as: {auth_data:#?}");
-//                 let authorization = build_authorization(auth_data.claims);
-//                 Ok(authorization)
-//             },
-//             Err(err) => {
-//                 let msg = get_jwt_error_string(err);
-//                 error!("Failed to unpack Bearer-token: {msg}");
-//                 Err(ApiError(msg))
-//             }
-//         }
-//     }
-
-//     /// Implementation of the method to map an api-key to an Authorization
-//     fn apikey_authorization(&self, api_key: &str) -> Result<Authorization, ApiError> {
-//         debug!("\tAuthorizationApi: Received api-key, {api_key:#?}");
-
-//         // TODO: insert the logic to map received apikey to the set of claims
-//         let claims = full_permission_claim();
-
-//         // and build an authorization out of it
-//         Ok(build_authorization(claims))
-//     }
-
-//     /// Implementation of the method to map a basic authentication (username and password) to an Authorization
-//     fn basic_authorization(&self, basic: &Basic) -> Result<Authorization, ApiError> {
-//         debug!("\tAuthorizationApi: Received Basic-token, {basic:#?}");
-
-//         // TODO: insert the logic to map received apikey to the set of claims
-//         let claims = full_permission_claim();
-
-//         // and build an authorization out of it
-//         Ok(build_authorization(claims))
-//     }
-
-// }
+    req.extensions_mut().insert(user_id);
+    Ok(next.run(req).await)
+}

@@ -1,6 +1,6 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use db_model::establish_connection;
-use db_model::models::{DailyTrack, Topic};
+use db_model::models::{DailyTrack, Topic, User};
 use db_model::schema;
 use diesel::MysqlConnection;
 use diesel::prelude::*;
@@ -27,11 +27,13 @@ fn binary_to_u16(bytes: &[u8]) -> Option<u16> {
     Some(u16::from_be_bytes([bytes[0], bytes[1]]))
 }
 
-pub fn get_topics(parent_topic_id: Option<u16>) -> Result<Vec<Topic>, DieselError> {
+pub fn get_topics(parent_topic_id: Option<u16>, user_id: Option<Vec<u8>>) -> Result<Vec<Topic>, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
-    let mut topics: Vec<Topic> = schema::topic::dsl::topic
-        .select(Topic::as_select())
-        .load(&mut *connection)?;
+    let mut query = schema::topic::dsl::topic.select(Topic::as_select()).into_boxed();
+    if let Some(uid) = user_id {
+        query = query.filter(schema::topic::dsl::user_id.eq(uid));
+    }
+    let mut topics: Vec<Topic> = query.load(&mut *connection)?;
 
     if let Some(parent_id) = parent_topic_id {
         topics.retain(|t| {
@@ -50,14 +52,17 @@ pub fn create_topic(
     topic_name: String,
     display_color: String,
     parent_topic_id: Option<Vec<u8>>,
+    user_id: Option<Vec<u8>>,
 ) -> Result<Topic, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
 
-    let existing: Option<Topic> = schema::topic::dsl::topic
+    let mut query = schema::topic::dsl::topic
         .filter(schema::topic::topic_name.eq(&topic_name))
-        .select(Topic::as_select())
-        .first(&mut *connection)
-        .optional()?;
+        .into_boxed();
+    if let Some(ref uid) = user_id {
+        query = query.filter(schema::topic::user_id.eq(uid.clone()));
+    }
+    let existing: Option<Topic> = query.select(Topic::as_select()).first(&mut *connection).optional()?;
 
     if existing.is_some() {
         return Err(DieselError::DatabaseError(
@@ -76,6 +81,7 @@ pub fn create_topic(
         created_at: now,
         updated_at: None,
         parent_topic_id,
+        user_id,
     };
 
     diesel::insert_into(schema::topic::table)
@@ -143,12 +149,16 @@ pub fn get_daily_tracks(
     start_date: Option<NaiveDate>,
     end_date: Option<NaiveDate>,
     topic_id: Option<u16>,
+    user_id: Option<Vec<u8>>,
 ) -> Result<Vec<DailyTrack>, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
 
     let mut query = schema::daily_track::dsl::daily_track
         .select(DailyTrack::as_select())
         .into_boxed();
+    if let Some(uid) = user_id {
+        query = query.filter(schema::daily_track::dsl::user_id.eq(uid));
+    }
 
     if let Some(start) = start_date {
         let start_dt = start
@@ -184,14 +194,17 @@ pub fn create_daily_track(
     start_time: NaiveDateTime,
     topic_id: Option<Vec<u8>>,
     comment: Option<String>,
+    user_id: Option<Vec<u8>>,
 ) -> Result<DailyTrack, DieselError> {
     let mut connection = DB_CONNECTION.lock().unwrap();
 
-    let existing: Option<DailyTrack> = schema::daily_track::dsl::daily_track
+    let mut query = schema::daily_track::dsl::daily_track
         .filter(schema::daily_track::start_time.eq(&start_time))
-        .select(DailyTrack::as_select())
-        .first(&mut *connection)
-        .optional()?;
+        .into_boxed();
+    if let Some(ref uid) = user_id {
+        query = query.filter(schema::daily_track::user_id.eq(uid.clone()));
+    }
+    let existing: Option<DailyTrack> = query.select(DailyTrack::as_select()).first(&mut *connection).optional()?;
 
     if existing.is_some() {
         return Err(DieselError::DatabaseError(
@@ -203,7 +216,7 @@ pub fn create_daily_track(
         ));
     }
 
-    let new_track = DailyTrack::new(start_time, topic_id, comment);
+    let new_track = DailyTrack::new(start_time, topic_id, comment, user_id);
 
     diesel::insert_into(schema::daily_track::table)
         .values(&new_track)
@@ -268,3 +281,38 @@ pub fn delete_daily_track(id: u16) -> Result<bool, DieselError> {
         .execute(&mut *connection)?;
     Ok(deleted > 0)
 }
+
+pub fn create_user(
+    username: String,
+    password_hash: String,
+) -> Result<User, DieselError> {
+    let mut connection = DB_CONNECTION.lock().unwrap();
+    let id = Uuid::new_v4().as_bytes().to_vec();
+    let now = chrono::Utc::now().naive_utc();
+    
+    let new_user = User {
+        id,
+        username,
+        password_hash,
+        created_at: now,
+        updated_at: None,
+    };
+    
+    diesel::insert_into(schema::users::table)
+        .values(&new_user)
+        .execute(&mut *connection)?;
+        
+    Ok(new_user)
+}
+
+pub fn get_user_by_username(
+    username: &str,
+) -> Result<Option<User>, DieselError> {
+    let mut connection = DB_CONNECTION.lock().unwrap();
+    schema::users::dsl::users
+        .filter(schema::users::username.eq(username))
+        .select(User::as_select())
+        .first(&mut *connection)
+        .optional()
+}
+

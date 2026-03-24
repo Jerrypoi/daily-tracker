@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { CreateDailyTrackRequest } from '../models/CreateDailyTrackRequest';
 import type { DailyTrack } from '../models/DailyTrack';
+import type { UpdateDailyTrackRequest } from '../models/UpdateDailyTrackRequest';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -76,6 +77,54 @@ export class DailyTrackService {
             },
             errors: {
                 404: `Daily track record not found`,
+                500: `Internal server error`,
+            },
+        });
+    }
+    /**
+     * Update a daily track record
+     * Updates a daily track record's topic and comment by its ID.
+     * @param id ID of the daily track record to update
+     * @param body Daily track update payload
+     * @returns DailyTrack Daily track updated successfully
+     * @throws ApiError
+     */
+    public static updateDailyTrack(
+        id: number,
+        body: UpdateDailyTrackRequest,
+    ): CancelablePromise<DailyTrack> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/daily-tracks/{id}',
+            path: {
+                'id': id,
+            },
+            body: body,
+            errors: {
+                400: `Invalid input`,
+                404: `Daily track or referenced topic not found`,
+                500: `Internal server error`,
+            },
+        });
+    }
+    /**
+     * Delete a daily track record
+     * Deletes a daily track record by its ID.
+     * @param id ID of the daily track record to delete
+     * @returns void
+     * @throws ApiError
+     */
+    public static deleteDailyTrack(
+        id: number,
+    ): CancelablePromise<void> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/daily-tracks/{id}',
+            path: {
+                'id': id,
+            },
+            errors: {
+                404: `Daily track not found`,
                 500: `Internal server error`,
             },
         });

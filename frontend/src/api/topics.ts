@@ -2,7 +2,6 @@ import { TopicService } from './generated'
 import type { Topic as GeneratedTopic } from './generated'
 
 export const DEFAULT_TOPIC_COLOR = '#3b82f6'
-const fallbackApiBaseUrl = 'http://localhost:8080/api/v1'
 
 export type Topic = GeneratedTopic & {
   display_color: string
@@ -34,10 +33,7 @@ function normalizeTopic(topic: GeneratedTopic): Topic {
   }
 }
 
-function apiBaseUrl() {
-  const value = import.meta.env.VITE_API_BASE_URL
-  return value && value.trim() ? value : fallbackApiBaseUrl
-}
+// Deleted unused url helpers
 
 function parseErrorBody(body: unknown): string {
   if (typeof body === 'object' && body !== null) {
@@ -54,40 +50,26 @@ export function listTopics(parentTopicId?: number) {
 }
 
 export async function createTopic(input: TopicInput) {
-  const response = await fetch(`${apiBaseUrl()}/topics`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  try {
+    const created = await TopicService.createTopic({
       topic_name: input.topicName,
       parent_topic_id: input.parentTopicId,
-      display_color: input.displayColor,
-    }),
-  })
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(parseErrorBody(body))
+      display_color: input.displayColor
+    })
+    return normalizeTopic(created)
+  } catch (err: any) {
+    throw new Error(parseErrorBody(err?.body || err))
   }
-
-  const created = (await response.json()) as GeneratedTopic
-  return normalizeTopic(created)
 }
 
 export async function updateTopic(id: number, input: UpdateTopicInput) {
-  const response = await fetch(`${apiBaseUrl()}/topics/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  try {
+    const updated = await TopicService.updateTopic(id, {
       topic_name: input.topicName,
-      display_color: input.displayColor,
-    }),
-  })
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(parseErrorBody(body))
+      display_color: input.displayColor
+    })
+    return normalizeTopic(updated)
+  } catch (err: any) {
+    throw new Error(parseErrorBody(err?.body || err))
   }
-
-  const updated = (await response.json()) as GeneratedTopic
-  return normalizeTopic(updated)
 }
