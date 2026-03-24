@@ -15,12 +15,64 @@
         {
             "name": "DailyTrack",
             "description": "Manage your daily track records. Each record represents a 30-minute time period."
+        },
+        {
+            "name": "Auth",
+            "description": "Authentication endpoints for user registration and login."
         }
     ],
     "schemes": [
         "http"
     ],
     "paths": {
+        "/auth/register": {
+            "post": {
+                "tags": ["Auth"],
+                "summary": "Register a new user",
+                "description": "Registers a new user and returns user info.",
+                "operationId": "register",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": { "$ref": "#/definitions/RegisterRequest" }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Success",
+                        "schema": { "$ref": "#/definitions/UserResponse" }
+                    }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "tags": ["Auth"],
+                "summary": "Login and get a JWT token",
+                "description": "Logs in the user and returns a token.",
+                "operationId": "login",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": { "$ref": "#/definitions/LoginRequest" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "schema": { "$ref": "#/definitions/TokenResponse" }
+                    }
+                }
+            }
+        },
         "/topics": {
             "get": {
                 "tags": ["Topic"],
@@ -128,6 +180,65 @@
                     },
                     "404": {
                         "description": "Topic not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": ["Topic"],
+                "summary": "Update a topic",
+                "description": "Updates a topic name and display color by its ID.",
+                "operationId": "updateTopic",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the topic to update",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Topic update payload",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UpdateTopicRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Topic updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/Topic"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request payload",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Topic not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Topic name already exists",
                         "schema": {
                             "$ref": "#/definitions/ErrorResponse"
                         }
@@ -287,6 +398,92 @@
                         }
                     }
                 }
+            },
+            "put": {
+                "tags": ["DailyTrack"],
+                "summary": "Update a daily track record",
+                "description": "Updates a daily track record's topic and comment by its ID.",
+                "operationId": "updateDailyTrack",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the daily track record to update",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Daily track update payload",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UpdateDailyTrackRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daily track updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/DailyTrack"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Daily track or referenced topic not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": ["DailyTrack"],
+                "summary": "Delete a daily track record",
+                "description": "Deletes a daily track record by its ID.",
+                "operationId": "deleteDailyTrack",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the daily track record to delete",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Daily track deleted successfully"
+                    },
+                    "404": {
+                        "description": "Daily track not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
             }
         }
     },
@@ -300,7 +497,7 @@
     "definitions": {
         "Topic": {
             "type": "object",
-            "required": ["id", "topic_name", "created_at"],
+            "required": ["id", "topic_name", "display_color", "created_at", "updated_at"],
             "properties": {
                 "id": {
                     "type": "integer",
@@ -311,6 +508,11 @@
                     "type": "string",
                     "description": "Name of the topic (e.g., 'playing', 'working')",
                     "example": "working"
+                },
+                "display_color": {
+                    "type": "string",
+                    "description": "Topic display color in hex format (#RRGGBB)",
+                    "example": "#3b82f6"
                 },
                 "created_at": {
                     "type": "string",
@@ -342,12 +544,33 @@
                     "type": "integer",
                     "format": "int64",
                     "description": "Optional parent topic ID for hierarchical organization"
+                },
+                "display_color": {
+                    "type": "string",
+                    "description": "Optional topic display color in hex format (#RRGGBB). Defaults to #3b82f6",
+                    "example": "#14b8a6"
+                }
+            }
+        },
+        "UpdateTopicRequest": {
+            "type": "object",
+            "required": ["topic_name", "display_color"],
+            "properties": {
+                "topic_name": {
+                    "type": "string",
+                    "description": "Updated topic name",
+                    "example": "deep work"
+                },
+                "display_color": {
+                    "type": "string",
+                    "description": "Updated topic display color in hex format (#RRGGBB)",
+                    "example": "#ef4444"
                 }
             }
         },
         "DailyTrack": {
             "type": "object",
-            "required": ["id", "start_time", "created_at"],
+            "required": ["id", "start_time", "created_at", "updated_at", "topic_id"],
             "properties": {
                 "id": {
                     "type": "integer",
@@ -382,7 +605,7 @@
         },
         "CreateDailyTrackRequest": {
             "type": "object",
-            "required": ["start_time"],
+            "required": ["start_time", "topic_id"],
             "properties": {
                 "start_time": {
                     "type": "string",
@@ -402,6 +625,21 @@
                 }
             }
         },
+        "UpdateDailyTrackRequest": {
+            "type": "object",
+            "required": ["topic_id"],
+            "properties": {
+                "topic_id": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "ID of the topic associated with this time period."
+                },
+                "comment": {
+                    "type": "string",
+                    "description": "Optional comment for the time period."
+                }
+            }
+        },
         "ErrorResponse": {
             "type": "object",
             "required": ["error", "message"],
@@ -416,6 +654,37 @@
                     "description": "Human-readable error message",
                     "example": "start_time must be at :00 or :30 minutes"
                 }
+            }
+        },
+        "RegisterRequest": {
+            "type": "object",
+            "required": ["username", "password"],
+            "properties": {
+                "username": { "type": "string" },
+                "password": { "type": "string" }
+            }
+        },
+        "LoginRequest": {
+            "type": "object",
+            "required": ["username", "password"],
+            "properties": {
+                "username": { "type": "string" },
+                "password": { "type": "string" }
+            }
+        },
+        "TokenResponse": {
+            "type": "object",
+            "required": ["token"],
+            "properties": {
+                "token": { "type": "string" }
+            }
+        },
+        "UserResponse": {
+            "type": "object",
+            "required": ["id", "username"],
+            "properties": {
+                "id": { "type": "string" },
+                "username": { "type": "string" }
             }
         }
     }

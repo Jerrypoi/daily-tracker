@@ -1,0 +1,2 @@
+ALTER TABLE topic
+ADD COLUMN display_color VARCHAR(7) NOT NULL DEFAULT '#3b82f6';
