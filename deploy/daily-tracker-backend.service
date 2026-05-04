@@ -1,0 +1,31 @@
+[Unit]
+Description=Daily Tracker Backend (Rust/Axum)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_USER@
+EnvironmentFile=/etc/daily-tracker/backend.env
+ExecStart=@INSTALL_DIR@/bin/daily-tracker-backend
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Auto-create /var/log/daily-tracker/ owned by User=, and add it to
+# ReadWritePaths so the binary can roll its own log files there.
+LogsDirectory=daily-tracker
+LogsDirectoryMode=0755
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+LimitNOFILE=65535
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

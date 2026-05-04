@@ -1,0 +1,15 @@
+backend/target
+.DS_Store
+*.log
+.env
+**/.env
+.cursor
+.vscode
+.claude
+
+# CLI (TypeScript)
+node_modules
+cli/dist
+*.tsbuildinfo
+
+

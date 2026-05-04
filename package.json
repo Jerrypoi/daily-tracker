@@ -1,0 +1,28 @@
+{
+  "name": "daily-tracker-cli",
+  "version": "0.1.0",
+  "description": "Command-line client for the Daily Tracker backend. Designed for scripting and LLM agents.",
+  "type": "module",
+  "bin": {
+    "daily-tracker": "cli/dist/bin.js"
+  },
+  "files": [
+    "cli/dist",
+    "cli/src",
+    "cli/README.md",
+    "tsconfig.json"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x cli/dist/bin.js",
+    "typecheck": "tsc --noEmit",
+    "prepare": "tsc && chmod +x cli/dist/bin.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  },
+  "license": "MIT"
+}
