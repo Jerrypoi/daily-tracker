@@ -1,32 +1,31 @@
 use axum::{
     body::Body,
     extract::Request,
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     middleware::Next,
     response::Response,
 };
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-static JWT_SECRET: Lazy<String> = Lazy::new(|| {
-    std::env::var("JWT_SECRET").expect("JWT_SECRET environment variable must be set")
-});
+static JWT_SECRET: Lazy<String> =
+    Lazy::new(|| std::env::var("JWT_SECRET").expect("JWT_SECRET environment variable must be set"));
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String, // user_id in hex string or raw string
+    pub sub: String,
     pub exp: usize,
 }
 
-pub fn create_jwt(user_id: &[u8]) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn create_jwt(user_id: i64) -> Result<String, jsonwebtoken::errors::Error> {
     let exp = chrono::Utc::now()
         .checked_add_signed(chrono::Duration::days(7))
         .expect("valid timestamp")
         .timestamp() as usize;
 
     let claims = Claims {
-        sub: hex::encode(user_id),
+        sub: user_id.to_string(),
         exp,
     };
 
@@ -78,8 +77,11 @@ pub async fn auth_middleware(mut req: Request<Body>, next: Next) -> Result<Respo
             &Validation::default(),
         )
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
-        let user_id =
-            hex::decode(&token_data.claims.sub).map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let user_id = token_data
+            .claims
+            .sub
+            .parse::<i64>()
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
         (user_id, AuthMethod::Jwt)
     };
 
@@ -112,7 +114,11 @@ pub async fn jwt_only_middleware(
     )
     .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-    let user_id = hex::decode(&token_data.claims.sub).map_err(|_| StatusCode::UNAUTHORIZED)?;
+    let user_id = token_data
+        .claims
+        .sub
+        .parse::<i64>()
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     req.extensions_mut().insert(user_id);
     req.extensions_mut().insert(AuthMethod::Jwt);
@@ -122,7 +128,7 @@ pub async fn jwt_only_middleware(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jsonwebtoken::{decode, DecodingKey, Validation};
+    use jsonwebtoken::{DecodingKey, Validation, decode};
 
     fn setup_jwt_secret() {
         // Ensure JWT_SECRET is set for tests
@@ -136,8 +142,8 @@ mod tests {
     #[test]
     fn create_jwt_returns_valid_token() {
         setup_jwt_secret();
-        let user_id = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-        let token = create_jwt(&user_id).unwrap();
+        let user_id = 42;
+        let token = create_jwt(user_id).unwrap();
         assert!(!token.is_empty());
 
         // Decode and verify
@@ -149,14 +155,14 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(token_data.claims.sub, hex::encode(&user_id));
+        assert_eq!(token_data.claims.sub, user_id.to_string());
     }
 
     #[test]
-    fn create_jwt_sub_is_hex_encoded_user_id() {
+    fn create_jwt_sub_is_decimal_user_id() {
         setup_jwt_secret();
-        let user_id = vec![0xDE, 0xAD, 0xBE, 0xEF];
-        let token = create_jwt(&user_id).unwrap();
+        let user_id = 3_735_928_559;
+        let token = create_jwt(user_id).unwrap();
 
         let secret = std::env::var("JWT_SECRET").unwrap();
         let token_data = decode::<Claims>(
@@ -166,14 +172,14 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(token_data.claims.sub, "deadbeef");
+        assert_eq!(token_data.claims.sub, "3735928559");
     }
 
     #[test]
     fn create_jwt_expiry_is_in_the_future() {
         setup_jwt_secret();
-        let user_id = vec![1, 2, 3, 4];
-        let token = create_jwt(&user_id).unwrap();
+        let user_id = 1;
+        let token = create_jwt(user_id).unwrap();
 
         let secret = std::env::var("JWT_SECRET").unwrap();
         let token_data = decode::<Claims>(
@@ -193,18 +199,15 @@ mod tests {
     #[test]
     fn create_jwt_different_users_produce_different_tokens() {
         setup_jwt_secret();
-        let user1 = vec![1, 2, 3, 4];
-        let user2 = vec![5, 6, 7, 8];
-        let token1 = create_jwt(&user1).unwrap();
-        let token2 = create_jwt(&user2).unwrap();
+        let token1 = create_jwt(1).unwrap();
+        let token2 = create_jwt(2).unwrap();
         assert_ne!(token1, token2);
     }
 
     #[test]
     fn jwt_decode_with_wrong_secret_fails() {
         setup_jwt_secret();
-        let user_id = vec![1, 2, 3, 4];
-        let token = create_jwt(&user_id).unwrap();
+        let token = create_jwt(1).unwrap();
 
         let result = decode::<Claims>(
             &token,
@@ -215,10 +218,9 @@ mod tests {
     }
 
     #[test]
-    fn create_jwt_with_empty_user_id() {
+    fn create_jwt_with_zero_user_id() {
         setup_jwt_secret();
-        let user_id: Vec<u8> = vec![];
-        let token = create_jwt(&user_id).unwrap();
+        let token = create_jwt(0).unwrap();
         assert!(!token.is_empty());
 
         let secret = std::env::var("JWT_SECRET").unwrap();
@@ -229,22 +231,17 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(token_data.claims.sub, "");
+        assert_eq!(token_data.claims.sub, "0");
     }
 
     // --- auth_middleware tests ---
-    use axum::{
-        Router,
-        body::Body,
-        routing::get,
-        middleware as axum_mw,
-    };
+    use axum::{Router, body::Body, middleware as axum_mw, routing::get};
     use tower::ServiceExt as _;
 
     async fn protected_handler(
-        axum::extract::Extension(user_id): axum::extract::Extension<Vec<u8>>,
+        axum::extract::Extension(user_id): axum::extract::Extension<i64>,
     ) -> String {
-        hex::encode(&user_id)
+        user_id.to_string()
     }
 
     fn test_app_with_auth() -> Router {
@@ -297,8 +294,8 @@ mod tests {
     #[tokio::test]
     async fn middleware_accepts_valid_token() {
         setup_jwt_secret();
-        let user_id = vec![0xAB, 0xCD, 0xEF, 0x01];
-        let token = create_jwt(&user_id).unwrap();
+        let user_id = 2_882_400_001;
+        let token = create_jwt(user_id).unwrap();
 
         let app = test_app_with_auth();
         let request = axum::extract::Request::builder()
@@ -314,7 +311,7 @@ mod tests {
             .await
             .unwrap()
             .to_bytes();
-        assert_eq!(&body[..], b"abcdef01");
+        assert_eq!(&body[..], b"2882400001");
     }
 
     #[tokio::test]
@@ -404,8 +401,7 @@ mod tests {
     #[tokio::test]
     async fn jwt_only_middleware_accepts_valid_jwt_and_marks_method() {
         setup_jwt_secret();
-        let user_id = vec![0x12, 0x34, 0x56, 0x78];
-        let token = create_jwt(&user_id).unwrap();
+        let token = create_jwt(305_419_896).unwrap();
 
         let app = test_app_with_jwt_only();
         let request = axum::extract::Request::builder()

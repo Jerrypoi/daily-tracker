@@ -9,7 +9,7 @@ pub struct CreateApiKeyRequest {
 /// again, so the caller must store it.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CreateApiKeyResponse {
-    pub id: u16,
+    pub id: i64,
     pub name: String,
     pub key_prefix: String,
     pub token: String,
@@ -18,7 +18,7 @@ pub struct CreateApiKeyResponse {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ApiKeyResponse {
-    pub id: u16,
+    pub id: i64,
     pub name: String,
     pub key_prefix: String,
     pub created_at: String,

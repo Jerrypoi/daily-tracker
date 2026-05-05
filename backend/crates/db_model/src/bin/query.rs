@@ -1,10 +1,9 @@
 use self::models::*;
-use diesel::prelude::*;
-use db_model::*;
 use chrono::Utc;
+use db_model::*;
+use diesel::prelude::*;
 
 fn main() {
-    use self::schema::topic::dsl::*;
     use self::schema::daily_track::dsl::*;
 
     let connection = &mut establish_connection();
@@ -20,8 +19,11 @@ fn main() {
         println!("{}", daily_track_item);
         println!("-----------\n");
     }
-    let data = DailyTrack::new(Utc::now().naive_utc(), None, None, None);
-    let result = data.insert_into(schema::daily_track::table).execute(connection).expect("Error inserting daily track");
+    let data = NewDailyTrack::new(1, Utc::now().naive_utc(), None, None, None);
+    let result = diesel::insert_into(schema::daily_track::table)
+        .values(&data)
+        .execute(connection)
+        .expect("Error inserting daily track");
     println!("Inserted {} daily tracks", result);
 
     // println!("Displaying {} daily tracks", results.len());

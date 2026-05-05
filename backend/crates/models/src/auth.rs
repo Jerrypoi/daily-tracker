@@ -20,7 +20,7 @@ pub struct TokenResponse {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct UserResponse {
-    pub id: String,
+    pub id: i64,
     pub username: String,
     pub email: String,
     pub email_verified: bool,
@@ -60,14 +60,18 @@ mod tests {
 
     #[test]
     fn token_response_serializes() {
-        let resp = TokenResponse { token: "abc.def.ghi".to_string() };
+        let resp = TokenResponse {
+            token: "abc.def.ghi".to_string(),
+        };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"token\":\"abc.def.ghi\""));
     }
 
     #[test]
     fn token_response_roundtrip() {
-        let resp = TokenResponse { token: "mytoken".to_string() };
+        let resp = TokenResponse {
+            token: "mytoken".to_string(),
+        };
         let json = serde_json::to_string(&resp).unwrap();
         let deser: TokenResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(deser.token, "mytoken");
@@ -76,27 +80,27 @@ mod tests {
     #[test]
     fn user_response_serializes() {
         let resp = UserResponse {
-            id: "abcd1234".to_string(),
+            id: 1234,
             username: "alice".to_string(),
             email: "alice@example.com".to_string(),
             email_verified: false,
         };
         let json = serde_json::to_string(&resp).unwrap();
-        assert!(json.contains("\"id\":\"abcd1234\""));
+        assert!(json.contains("\"id\":1234"));
         assert!(json.contains("\"email_verified\":false"));
     }
 
     #[test]
     fn user_response_roundtrip() {
         let resp = UserResponse {
-            id: "ff00".to_string(),
+            id: 255,
             username: "bob".to_string(),
             email: "bob@test.com".to_string(),
             email_verified: true,
         };
         let json = serde_json::to_string(&resp).unwrap();
         let deser: UserResponse = serde_json::from_str(&json).unwrap();
-        assert_eq!(deser.id, "ff00");
+        assert_eq!(deser.id, 255);
         assert!(deser.email_verified);
     }
 
@@ -110,7 +114,9 @@ mod tests {
 
     #[test]
     fn verify_email_response_serializes() {
-        let resp = VerifyEmailResponse { message: "ok".to_string() };
+        let resp = VerifyEmailResponse {
+            message: "ok".to_string(),
+        };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"message\":\"ok\""));
     }
