@@ -8,10 +8,10 @@ chrono = { workspace = true }
 db_model = { workspace = true }
 diesel = { workspace = true }
 once_cell = { workspace = true }
+utils = { workspace = true }
 uuid = { version = "1", features = ["v4"] }
 sha2 = "0.10"
 hex = "0.4"
-rand = "0.8"
+rand = { workspace = true }
 r2d2 = "0.8"
 dotenvy = "0.15"
-

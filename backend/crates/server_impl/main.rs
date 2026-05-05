@@ -55,7 +55,7 @@ fn register_routes() -> Router {
         .route("/login", axum::routing::post(handler::login));
 
     let allowed_origin = std::env::var("CORS_ORIGIN")
-        .unwrap_or_else(|_| "https://localhost:5173".to_string());
+        .unwrap_or_else(|_| "http://localhost:5173".to_string());
     let cors = CorsLayer::new()
         .allow_origin(allowed_origin.parse::<HeaderValue>().expect("Invalid CORS_ORIGIN value"))
         .allow_methods([

@@ -1,10 +1,10 @@
-use axum::extract::{Path, Query, Extension};
-use axum::http::StatusCode;
 use axum::Json;
+use axum::extract::{Extension, Path, Query};
+use axum::http::StatusCode;
+use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::NaiveDate;
 use db_model::models::DEFAULT_TOPIC_DISPLAY_COLOR;
 use models::*;
-use bcrypt::{hash, verify, DEFAULT_COST};
 
 // --- Validation Helpers ---
 pub(crate) fn is_valid_email(email: &str) -> bool {
@@ -35,21 +35,20 @@ pub(crate) fn is_valid_hex_color(value: &str) -> bool {
 }
 
 pub async fn get_topics(
-    Extension(user_id): Extension<Vec<u8>>,
+    Extension(user_id): Extension<i64>,
     Query(params): Query<GetTopicsParams>,
 ) -> Result<Json<Vec<Topic>>, ApiError> {
-    let topics = db::get_topics(params.parent_topic_id, Some(user_id))
-        .map_err(|e| {
-            log::error!("Failed to retrieve topics: {}", e);
-            ApiError::InternalServerError("Failed to retrieve topics".to_string())
-        })?;
+    let topics = db::get_topics(params.parent_topic_id, Some(user_id)).map_err(|e| {
+        log::error!("Failed to retrieve topics: {}", e);
+        ApiError::InternalServerError("Failed to retrieve topics".to_string())
+    })?;
 
     let topics: Vec<Topic> = topics.iter().map(|t| db_topic_to_topic(t)).collect();
     Ok(Json(topics))
 }
 
 pub async fn create_topic(
-    Extension(user_id): Extension<Vec<u8>>,
+    Extension(user_id): Extension<i64>,
     Json(req): Json<CreateTopicRequest>,
 ) -> Result<(StatusCode, Json<Topic>), ApiError> {
     if req.topic_name.trim().is_empty() {
@@ -58,12 +57,11 @@ pub async fn create_topic(
         ));
     }
 
-    let parent_topic_id_binary = if let Some(parent_id) = req.parent_topic_id {
-        let parent = db::get_topic_by_id(parent_id)
-            .map_err(|e| {
-                log::error!("Failed to verify parent topic: {}", e);
-                ApiError::InternalServerError("Failed to verify parent topic".to_string())
-            })?;
+    let parent_topic_id = if let Some(parent_id) = req.parent_topic_id {
+        let parent = db::get_topic_by_id_for_user(parent_id, user_id).map_err(|e| {
+            log::error!("Failed to verify parent topic: {}", e);
+            ApiError::InternalServerError("Failed to verify parent topic".to_string())
+        })?;
         let parent = parent.ok_or_else(|| {
             ApiError::NotFound(format!("Parent topic with id {} not found", parent_id))
         })?;
@@ -81,16 +79,20 @@ pub async fn create_topic(
         ));
     }
 
-    let db_topic = db::create_topic(req.topic_name, display_color, parent_topic_id_binary, Some(user_id)).map_err(|e| {
-        match e {
-            diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::UniqueViolation,
-                _,
-            ) => ApiError::Conflict("Topic name already exists".to_string()),
-            _ => {
-                log::error!("Failed to create topic: {}", e);
-                ApiError::InternalServerError("Failed to create topic".to_string())
-            }
+    let db_topic = db::create_topic(
+        req.topic_name,
+        display_color,
+        parent_topic_id,
+        Some(user_id),
+    )
+    .map_err(|e| match e {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UniqueViolation,
+            _,
+        ) => ApiError::Conflict("Topic name already exists".to_string()),
+        _ => {
+            log::error!("Failed to create topic: {}", e);
+            ApiError::InternalServerError("Failed to create topic".to_string())
         }
     })?;
 
@@ -98,24 +100,26 @@ pub async fn create_topic(
 }
 
 pub async fn get_topic_by_id(
-    Extension(user_id): Extension<Vec<u8>>,
-    Path(id): Path<u16>,
+    Extension(user_id): Extension<i64>,
+    Path(id): Path<i64>,
 ) -> Result<Json<Topic>, ApiError> {
-    let topic = db::get_topic_by_id_for_user(id, user_id)
-        .map_err(|e| {
-            log::error!("Failed to retrieve topic: {}", e);
-            ApiError::InternalServerError("Failed to retrieve topic".to_string())
-        })?;
+    let topic = db::get_topic_by_id_for_user(id, user_id).map_err(|e| {
+        log::error!("Failed to retrieve topic: {}", e);
+        ApiError::InternalServerError("Failed to retrieve topic".to_string())
+    })?;
 
     match topic {
         Some(t) => Ok(Json(db_topic_to_topic(&t))),
-        None => Err(ApiError::NotFound(format!("Topic with id {} not found", id))),
+        None => Err(ApiError::NotFound(format!(
+            "Topic with id {} not found",
+            id
+        ))),
     }
 }
 
 pub async fn update_topic(
-    Extension(user_id): Extension<Vec<u8>>,
-    Path(id): Path<u16>,
+    Extension(user_id): Extension<i64>,
+    Path(id): Path<i64>,
     Json(req): Json<UpdateTopicRequest>,
 ) -> Result<Json<Topic>, ApiError> {
     let topic_name = req.topic_name.trim().to_string();
@@ -130,27 +134,31 @@ pub async fn update_topic(
         ));
     }
 
-    let updated = db::update_topic(id, topic_name, req.display_color, user_id).map_err(|e| match e {
-        diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UniqueViolation,
-            _,
-        ) => ApiError::Conflict("Topic name already exists".to_string()),
-        _ => {
-            log::error!("Failed to update topic: {}", e);
-            ApiError::InternalServerError("Failed to update topic".to_string())
-        }
-    })?;
+    let updated =
+        db::update_topic(id, topic_name, req.display_color, user_id).map_err(|e| match e {
+            diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _,
+            ) => ApiError::Conflict("Topic name already exists".to_string()),
+            _ => {
+                log::error!("Failed to update topic: {}", e);
+                ApiError::InternalServerError("Failed to update topic".to_string())
+            }
+        })?;
 
     match updated {
         Some(topic) => Ok(Json(db_topic_to_topic(&topic))),
-        None => Err(ApiError::NotFound(format!("Topic with id {} not found", id))),
+        None => Err(ApiError::NotFound(format!(
+            "Topic with id {} not found",
+            id
+        ))),
     }
 }
 
 // --- DailyTrack Handlers ---
 
 pub async fn get_daily_tracks(
-    Extension(user_id): Extension<Vec<u8>>,
+    Extension(user_id): Extension<i64>,
     Query(params): Query<GetDailyTracksParams>,
 ) -> Result<Json<Vec<DailyTrack>>, ApiError> {
     let start_date = params
@@ -183,12 +191,15 @@ pub async fn get_daily_tracks(
             ApiError::InternalServerError("Failed to retrieve daily tracks".to_string())
         })?;
 
-    let tracks: Vec<DailyTrack> = tracks.iter().map(|t| db_daily_track_to_daily_track(t)).collect();
+    let tracks: Vec<DailyTrack> = tracks
+        .iter()
+        .map(|t| db_daily_track_to_daily_track(t))
+        .collect();
     Ok(Json(tracks))
 }
 
 pub async fn create_daily_track(
-    Extension(user_id): Extension<Vec<u8>>,
+    Extension(user_id): Extension<i64>,
     Json(req): Json<CreateDailyTrackRequest>,
 ) -> Result<(StatusCode, Json<DailyTrack>), ApiError> {
     let minutes = req.start_time.format("%M").to_string();
@@ -198,7 +209,7 @@ pub async fn create_daily_track(
         ));
     }
 
-    let topic = db::get_topic_by_id(req.topic_id).map_err(|e| {
+    let topic = db::get_topic_by_id_for_user(req.topic_id, user_id).map_err(|e| {
         log::error!("Failed to verify topic: {}", e);
         ApiError::InternalServerError("Failed to verify topic".to_string())
     })?;
@@ -211,23 +222,19 @@ pub async fn create_daily_track(
     }
 
     let start_time_naive = req.start_time.naive_utc();
-    let topic_id_binary = topic.map(|t| t.id);
+    let topic_id = topic.map(|t| t.id);
 
-    let db_track =
-        db::create_daily_track(start_time_naive, topic_id_binary, req.comment, Some(user_id)).map_err(|e| {
-            match e {
-                diesel::result::Error::DatabaseError(
-                    diesel::result::DatabaseErrorKind::UniqueViolation,
-                    _,
-                ) => ApiError::Conflict(
-                    "A record already exists for this time period".to_string(),
-                ),
-                _ => {
-                    log::error!("Failed to create daily track: {}", e);
-                    ApiError::InternalServerError("Failed to create daily track".to_string())
-                }
-            }
-        })?;
+    let db_track = db::create_daily_track(start_time_naive, topic_id, req.comment, Some(user_id))
+        .map_err(|e| match e {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UniqueViolation,
+            _,
+        ) => ApiError::Conflict("A record already exists for this time period".to_string()),
+        _ => {
+            log::error!("Failed to create daily track: {}", e);
+            ApiError::InternalServerError("Failed to create daily track".to_string())
+        }
+    })?;
 
     Ok((
         StatusCode::CREATED,
@@ -236,7 +243,7 @@ pub async fn create_daily_track(
 }
 
 pub async fn get_daily_track_by_id(
-    Extension(user_id): Extension<Vec<u8>>,
+    Extension(user_id): Extension<i64>,
     Path(id): Path<i64>,
 ) -> Result<Json<DailyTrack>, ApiError> {
     let track = db::get_daily_track_by_id(id, user_id).map_err(|e| {
@@ -254,11 +261,11 @@ pub async fn get_daily_track_by_id(
 }
 
 pub async fn update_daily_track(
-    Extension(user_id): Extension<Vec<u8>>,
-    Path(id): Path<u16>,
+    Extension(user_id): Extension<i64>,
+    Path(id): Path<i64>,
     Json(req): Json<UpdateDailyTrackRequest>,
 ) -> Result<Json<DailyTrack>, ApiError> {
-    let topic = db::get_topic_by_id(req.topic_id).map_err(|e| {
+    let topic = db::get_topic_by_id_for_user(req.topic_id, user_id).map_err(|e| {
         log::error!("Failed to verify topic: {}", e);
         ApiError::InternalServerError("Failed to verify topic".to_string())
     })?;
@@ -285,8 +292,8 @@ pub async fn update_daily_track(
 }
 
 pub async fn delete_daily_track(
-    Extension(user_id): Extension<Vec<u8>>,
-    Path(id): Path<u16>,
+    Extension(user_id): Extension<i64>,
+    Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
     let deleted = db::delete_daily_track(id, user_id).map_err(|e| {
         log::error!("Failed to delete daily track: {}", e);
@@ -303,11 +310,15 @@ pub async fn delete_daily_track(
     }
 }
 
-pub async fn register(Json(req): Json<RegisterRequest>) -> Result<(StatusCode, Json<UserResponse>), ApiError> {
+pub async fn register(
+    Json(req): Json<RegisterRequest>,
+) -> Result<(StatusCode, Json<UserResponse>), ApiError> {
     // Email format validation
     let email = req.email.trim();
     if email.is_empty() || !is_valid_email(email) {
-        return Err(ApiError::BadRequest("A valid email address is required".to_string()));
+        return Err(ApiError::BadRequest(
+            "A valid email address is required".to_string(),
+        ));
     }
 
     if req.password.len() < 8 {
@@ -316,21 +327,22 @@ pub async fn register(Json(req): Json<RegisterRequest>) -> Result<(StatusCode, J
         ));
     }
 
-    let password_hash = hash(&req.password, DEFAULT_COST)
-        .map_err(|e| {
-            log::error!("Failed to hash password: {}", e);
-            ApiError::InternalServerError("Registration failed".to_string())
-        })?;
-
-    let (user, code) = db::create_user(req.username, req.email, password_hash).map_err(|e| match e {
-        diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
-            ApiError::Conflict("Username or email already exists".to_string())
-        }
-        _ => {
-            log::error!("Database error during registration: {}", e);
-            ApiError::InternalServerError("Registration failed".to_string())
-        }
+    let password_hash = hash(&req.password, DEFAULT_COST).map_err(|e| {
+        log::error!("Failed to hash password: {}", e);
+        ApiError::InternalServerError("Registration failed".to_string())
     })?;
+
+    let (user, code) =
+        db::create_user(req.username, req.email, password_hash).map_err(|e| match e {
+            diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _,
+            ) => ApiError::Conflict("Username or email already exists".to_string()),
+            _ => {
+                log::error!("Database error during registration: {}", e);
+                ApiError::InternalServerError("Registration failed".to_string())
+            }
+        })?;
 
     // Send verification email in the background
     let email_to = user.email.clone();
@@ -338,19 +350,19 @@ pub async fn register(Json(req): Json<RegisterRequest>) -> Result<(StatusCode, J
     let email_code = code.clone();
     let log_id = logging::current_log_id();
     tokio::spawn(logging::LOG_ID.scope(log_id, async move {
-        if let Err(e) = crate::email::send_verification_email(&email_to, &email_username, &email_code).await {
+        if let Err(e) =
+            crate::email::send_verification_email(&email_to, &email_username, &email_code).await
+        {
             log::error!("Failed to send verification email to {}: {}", email_to, e);
         } else {
             log::info!("Verification email sent to {}", email_to);
         }
     }));
 
-    let user_id_hex = hex::encode(&user.id);
-
     Ok((
         StatusCode::CREATED,
         Json(UserResponse {
-            id: user_id_hex,
+            id: user.id,
             username: user.username,
             email: user.email,
             email_verified: user.email_verified,
@@ -358,12 +370,13 @@ pub async fn register(Json(req): Json<RegisterRequest>) -> Result<(StatusCode, J
     ))
 }
 
-pub async fn verify_email(Json(req): Json<VerifyEmailRequest>) -> Result<Json<VerifyEmailResponse>, ApiError> {
-    let verified = db::verify_email_code(&req.email, &req.code)
-        .map_err(|e| {
-            log::error!("Database error during email verification: {}", e);
-            ApiError::InternalServerError("Verification failed".to_string())
-        })?;
+pub async fn verify_email(
+    Json(req): Json<VerifyEmailRequest>,
+) -> Result<Json<VerifyEmailResponse>, ApiError> {
+    let verified = db::verify_email_code(&req.email, &req.code).map_err(|e| {
+        log::error!("Database error during email verification: {}", e);
+        ApiError::InternalServerError("Verification failed".to_string())
+    })?;
 
     if !verified {
         return Err(ApiError::BadRequest(
@@ -384,27 +397,28 @@ pub async fn login(Json(req): Json<LoginRequest>) -> Result<Json<TokenResponse>,
         })?
         .ok_or_else(|| ApiError::Unauthorized("Invalid username or password".to_string()))?;
 
-    let valid = verify(&req.password, &user.password_hash)
-        .map_err(|e| {
-            log::error!("Error verifying password: {}", e);
-            ApiError::InternalServerError("Login failed".to_string())
-        })?;
+    let valid = verify(&req.password, &user.password_hash).map_err(|e| {
+        log::error!("Error verifying password: {}", e);
+        ApiError::InternalServerError("Login failed".to_string())
+    })?;
 
     if !valid {
-        return Err(ApiError::Unauthorized("Invalid username or password".to_string()));
+        return Err(ApiError::Unauthorized(
+            "Invalid username or password".to_string(),
+        ));
     }
 
     if !user.email_verified {
         return Err(ApiError::Forbidden(
-            "Email address not verified. Please check your email for the verification code.".to_string(),
+            "Email address not verified. Please check your email for the verification code."
+                .to_string(),
         ));
     }
 
-    let token = crate::server_auth::create_jwt(&user.id)
-        .map_err(|e| {
-            log::error!("Error generating token: {}", e);
-            ApiError::InternalServerError("Login failed".to_string())
-        })?;
+    let token = crate::server_auth::create_jwt(user.id).map_err(|e| {
+        log::error!("Error generating token: {}", e);
+        ApiError::InternalServerError("Login failed".to_string())
+    })?;
 
     Ok(Json(TokenResponse { token }))
 }
@@ -412,7 +426,7 @@ pub async fn login(Json(req): Json<LoginRequest>) -> Result<Json<TokenResponse>,
 // --- API Key Handlers ---
 
 pub async fn list_api_keys(
-    Extension(user_id): Extension<Vec<u8>>,
+    Extension(user_id): Extension<i64>,
 ) -> Result<Json<Vec<ApiKeyResponse>>, ApiError> {
     let keys = db::list_api_keys_for_user(user_id).map_err(|e| {
         log::error!("Failed to list API keys: {}", e);
@@ -424,7 +438,7 @@ pub async fn list_api_keys(
 }
 
 pub async fn create_api_key(
-    Extension(user_id): Extension<Vec<u8>>,
+    Extension(user_id): Extension<i64>,
     Json(req): Json<CreateApiKeyRequest>,
 ) -> Result<(StatusCode, Json<CreateApiKeyResponse>), ApiError> {
     let name = req.name.trim().to_string();
@@ -451,8 +465,8 @@ pub async fn create_api_key(
 }
 
 pub async fn revoke_api_key(
-    Extension(user_id): Extension<Vec<u8>>,
-    Path(id): Path<u16>,
+    Extension(user_id): Extension<i64>,
+    Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
     let revoked = db::revoke_api_key(id, user_id).map_err(|e| {
         log::error!("Failed to revoke API key: {}", e);
@@ -602,4 +616,3 @@ mod tests {
         assert!(!is_valid_hex_color("#"));
     }
 }
-

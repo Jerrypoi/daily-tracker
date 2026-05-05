@@ -52,7 +52,7 @@ make cli_help                    # Print CLI help
 - **Handlers**: `backend/crates/server_impl/handler.rs` — all HTTP handlers for topics, daily tracks, auth (register/login/verify-email)
 - **Auth**: `backend/crates/server_impl/server_auth.rs` — JWT creation/validation, auth middleware that injects `user_id` via Axum `Extension`
 - **Email**: `backend/crates/server_impl/email.rs` — verification email sending via lettre/SMTP
-- **Database layer** (`backend/crates/storage/db/src/db.rs`): All Diesel queries. Uses a global `Mutex<MysqlConnection>` singleton. IDs are UUID bytes (`Vec<u8>`) stored as binary in MySQL; public-facing IDs are `u16` derived from first 2 bytes.
+- **Database layer** (`backend/crates/storage/db/src/db.rs`): All Diesel queries. Uses a MySQL connection pool. Table IDs are `BIGINT`/Rust `i64`, and public API IDs use the same integer values.
 - **DB models**: `backend/crates/db_model/` — Diesel schema and model structs
 - **API models**: `backend/crates/models/` — request/response types, error types (`ApiError`), and conversions between DB models and API models
 
@@ -63,6 +63,7 @@ make cli_help                    # Print CLI help
 | `models` | `crates/models` | API request/response types, error handling |
 | `db` | `crates/storage/db` | Database access functions |
 | `logging` | `crates/logging` | Logging initialization |
+| `utils` | `crates/utils` | Shared backend utilities, including Snowflake ID generation |
 
 ### Frontend
 - React 19 + Vite + TypeScript
@@ -86,7 +87,7 @@ All routes under `/api/v1/`:
 
 ## Key Patterns
 
-- **ID encoding**: Internal IDs are 16-byte UUIDs stored as `Vec<u8>`. Public API uses `u16` (first 2 bytes, big-endian). Conversion helpers: `i64_to_binary`, `u16_to_binary`, `binary_to_u16` in `db.rs`.
+- **ID encoding**: Table IDs are Snowflake-style positive `BIGINT` values generated in the backend and represented as Rust `i64`; foreign key columns use the same type.
 - **User data isolation**: Topics and daily tracks are scoped by `user_id` extracted from JWT in auth middleware.
 - **API contract**: `swagger.json` is the source of truth for the API schema. After backend API changes, update `swagger.json` and run `make frontend_generate_api`.
 

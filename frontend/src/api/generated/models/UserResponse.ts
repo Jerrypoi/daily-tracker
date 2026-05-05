@@ -3,9 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UserResponse = {
-    id: string;
+    id: number;
     username: string;
     email: string;
     email_verified: boolean;
 };
-

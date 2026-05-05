@@ -1,6 +1,6 @@
 CREATE TABLE api_keys (
-    id BINARY(16) PRIMARY KEY,
-    user_id BINARY(16) NOT NULL,
+    id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
     key_hash VARCHAR(64) NOT NULL UNIQUE,
     key_prefix VARCHAR(16) NOT NULL,
     name VARCHAR(255) NOT NULL,

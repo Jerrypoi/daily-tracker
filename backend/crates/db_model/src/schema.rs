@@ -2,10 +2,8 @@
 
 diesel::table! {
     api_keys (id) {
-        #[max_length = 16]
-        id -> Binary,
-        #[max_length = 16]
-        user_id -> Binary,
+        id -> Bigint,
+        user_id -> Bigint,
         #[max_length = 64]
         key_hash -> Varchar,
         #[max_length = 16]
@@ -20,40 +18,33 @@ diesel::table! {
 
 diesel::table! {
     daily_track (id) {
-        #[max_length = 16]
-        id -> Binary,
+        id -> Bigint,
         start_time -> Datetime,
         created_at -> Datetime,
         updated_at -> Nullable<Datetime>,
-        #[max_length = 16]
-        topic_id -> Nullable<Binary>,
+        topic_id -> Nullable<Bigint>,
         comment -> Nullable<Text>,
-        #[max_length = 16]
-        user_id -> Nullable<Binary>,
+        user_id -> Nullable<Bigint>,
     }
 }
 
 diesel::table! {
     topic (id) {
-        #[max_length = 16]
-        id -> Binary,
+        id -> Bigint,
         #[max_length = 255]
         topic_name -> Varchar,
         created_at -> Datetime,
         updated_at -> Nullable<Datetime>,
-        #[max_length = 16]
-        parent_topic_id -> Nullable<Binary>,
+        parent_topic_id -> Nullable<Bigint>,
         #[max_length = 7]
         display_color -> Varchar,
-        #[max_length = 16]
-        user_id -> Nullable<Binary>,
+        user_id -> Nullable<Bigint>,
     }
 }
 
 diesel::table! {
     users (id) {
-        #[max_length = 16]
-        id -> Binary,
+        id -> Bigint,
         #[max_length = 255]
         username -> Varchar,
         #[max_length = 255]
