@@ -4,9 +4,9 @@
 /* eslint-disable */
 export type ApiKey = {
     /**
-     * Public identifier for the API key
+     * Public identifier for the API key (decimal string of an int64)
      */
-    id: number;
+    id: string;
     /**
      * User-supplied label for the key
      */

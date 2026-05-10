@@ -11,6 +11,6 @@ export function createApiKey(name: string) {
   return ApiKeyService.createApiKey({ name })
 }
 
-export function revokeApiKey(id: number) {
+export function revokeApiKey(id: string) {
   return ApiKeyService.revokeApiKey(id)
 }

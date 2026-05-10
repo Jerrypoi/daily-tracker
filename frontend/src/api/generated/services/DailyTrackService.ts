@@ -21,7 +21,7 @@ export class DailyTrackService {
     public static getDailyTracks(
         startDate?: string,
         endDate?: string,
-        topicId?: number,
+        topicId?: string,
     ): CancelablePromise<Array<DailyTrack>> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -67,7 +67,7 @@ export class DailyTrackService {
      * @throws ApiError
      */
     public static getDailyTrackById(
-        id: number,
+        id: string,
     ): CancelablePromise<DailyTrack> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -90,7 +90,7 @@ export class DailyTrackService {
      * @throws ApiError
      */
     public static updateDailyTrack(
-        id: number,
+        id: string,
         body: UpdateDailyTrackRequest,
     ): CancelablePromise<DailyTrack> {
         return __request(OpenAPI, {
@@ -116,7 +116,7 @@ export class DailyTrackService {
      * @throws ApiError
      */
     public static deleteDailyTrack(
-        id: number,
+        id: string,
     ): CancelablePromise<void> {
         return __request(OpenAPI, {
             method: 'DELETE',

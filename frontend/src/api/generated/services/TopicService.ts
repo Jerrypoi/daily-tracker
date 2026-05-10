@@ -17,7 +17,7 @@ export class TopicService {
      * @throws ApiError
      */
     public static getTopics(
-        parentTopicId?: number,
+        parentTopicId?: string,
     ): CancelablePromise<Array<Topic>> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -59,7 +59,7 @@ export class TopicService {
      * @throws ApiError
      */
     public static getTopicById(
-        id: number,
+        id: string,
     ): CancelablePromise<Topic> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -82,7 +82,7 @@ export class TopicService {
      * @throws ApiError
      */
     public static updateTopic(
-        id: number,
+        id: string,
         body: UpdateTopicRequest,
     ): CancelablePromise<Topic> {
         return __request(OpenAPI, {

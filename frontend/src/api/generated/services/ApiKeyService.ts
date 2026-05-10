@@ -54,7 +54,7 @@ export class ApiKeyService {
      * @throws ApiError
      */
     public static revokeApiKey(
-        id: number,
+        id: string,
     ): CancelablePromise<void> {
         return __request(OpenAPI, {
             method: 'DELETE',

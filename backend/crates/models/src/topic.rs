@@ -1,19 +1,26 @@
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct Topic {
+    #[serde_as(as = "DisplayFromStr")]
     pub id: i64,
     pub topic_name: String,
     pub display_color: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_topic_id: Option<i64>,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct CreateTopicRequest {
     pub topic_name: String,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde(default)]
     pub parent_topic_id: Option<i64>,
     pub display_color: Option<String>,
 }
@@ -24,8 +31,11 @@ pub struct UpdateTopicRequest {
     pub display_color: String,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct GetTopicsParams {
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde(default)]
     pub parent_topic_id: Option<i64>,
 }
 
@@ -45,10 +55,24 @@ mod tests {
             parent_topic_id: Some(10),
         };
         let json = serde_json::to_string(&topic).unwrap();
-        assert!(json.contains("\"id\":42"));
+        assert!(json.contains("\"id\":\"42\""));
         assert!(json.contains("\"topic_name\":\"work\""));
         assert!(json.contains("\"display_color\":\"#3b82f6\""));
-        assert!(json.contains("\"parent_topic_id\":10"));
+        assert!(json.contains("\"parent_topic_id\":\"10\""));
+    }
+
+    #[test]
+    fn topic_serializes_large_i64_id_without_precision_loss() {
+        let topic = Topic {
+            id: 311777577381486600,
+            topic_name: "x".to_string(),
+            display_color: "#000000".to_string(),
+            created_at: Utc.with_ymd_and_hms(2026, 1, 15, 10, 0, 0).unwrap(),
+            updated_at: Utc.with_ymd_and_hms(2026, 1, 15, 10, 0, 0).unwrap(),
+            parent_topic_id: None,
+        };
+        let json = serde_json::to_string(&topic).unwrap();
+        assert!(json.contains("\"id\":\"311777577381486600\""));
     }
 
     #[test]
@@ -62,30 +86,29 @@ mod tests {
             parent_topic_id: None,
         };
         let json = serde_json::to_string(&topic).unwrap();
-        // skip_serializing_if means parent_topic_id should be absent
         assert!(!json.contains("parent_topic_id"));
     }
 
     #[test]
     fn topic_roundtrip_serialization() {
         let topic = Topic {
-            id: 99,
+            id: 311777577381486600,
             topic_name: "exercise".to_string(),
             display_color: "#00ff00".to_string(),
             created_at: Utc.with_ymd_and_hms(2026, 3, 1, 8, 0, 0).unwrap(),
             updated_at: Utc.with_ymd_and_hms(2026, 3, 2, 8, 0, 0).unwrap(),
-            parent_topic_id: Some(5),
+            parent_topic_id: Some(311777577381486601),
         };
         let json = serde_json::to_string(&topic).unwrap();
         let deserialized: Topic = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.id, 99);
+        assert_eq!(deserialized.id, 311777577381486600);
         assert_eq!(deserialized.topic_name, "exercise");
-        assert_eq!(deserialized.parent_topic_id, Some(5));
+        assert_eq!(deserialized.parent_topic_id, Some(311777577381486601));
     }
 
     #[test]
     fn create_topic_request_deserializes() {
-        let json = r##"{"topic_name":"sleep","parent_topic_id":3,"display_color":"#112233"}"##;
+        let json = r##"{"topic_name":"sleep","parent_topic_id":"3","display_color":"#112233"}"##;
         let req: CreateTopicRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.topic_name, "sleep");
         assert_eq!(req.parent_topic_id, Some(3));
@@ -111,7 +134,7 @@ mod tests {
 
     #[test]
     fn get_topics_params_deserializes_with_parent() {
-        let json = r#"{"parent_topic_id":7}"#;
+        let json = r#"{"parent_topic_id":"7"}"#;
         let params: GetTopicsParams = serde_json::from_str(json).unwrap();
         assert_eq!(params.parent_topic_id, Some(7));
     }

@@ -6,7 +6,7 @@ export type UpdateDailyTrackRequest = {
     /**
      * ID of the topic associated with this time period.
      */
-    topic_id: number;
+    topic_id: string;
     /**
      * Optional comment for the time period.
      */

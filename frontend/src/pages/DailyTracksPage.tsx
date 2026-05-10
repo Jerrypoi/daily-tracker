@@ -173,7 +173,7 @@ export function DailyTracksPage() {
   const [endHourExclusive, setEndHourExclusive] = useState('2')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [deletingTrackId, setDeletingTrackId] = useState<number | null>(null)
+  const [deletingTrackId, setDeletingTrackId] = useState<string | null>(null)
   const [dragSelection, setDragSelection] = useState<DragSelection | null>(null)
   const [hoveredBoardCell, setHoveredBoardCell] = useState<HoveredBoardCell | null>(null)
   const activePointerIdRef = useRef<number | null>(null)
@@ -274,7 +274,7 @@ export function DailyTracksPage() {
 
 
   const topicNameById = useMemo(() => {
-    const map = new Map<number, string>()
+    const map = new Map<string, string>()
     for (const topic of topics) {
       map.set(topic.id, topic.topic_name)
     }
@@ -282,7 +282,7 @@ export function DailyTracksPage() {
   }, [topics])
 
   const topicColorById = useMemo(() => {
-    const map = new Map<number, string>()
+    const map = new Map<string, string>()
     for (const topic of topics) {
       map.set(topic.id, topic.display_color)
     }
@@ -514,8 +514,8 @@ export function DailyTracksPage() {
     }
 
     setSaveError(null)
-    const parsedTopicId = topicId ? Number(topicId) : undefined
-    if (parsedTopicId === undefined || Number.isNaN(parsedTopicId)) {
+    const parsedTopicId = topicId || undefined
+    if (parsedTopicId === undefined) {
       setSaveError('topic is required')
       return
     }

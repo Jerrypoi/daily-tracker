@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CreateApiKeyRequest {
@@ -7,8 +8,10 @@ pub struct CreateApiKeyRequest {
 
 /// Returned only at creation time — the plaintext `token` is never readable
 /// again, so the caller must store it.
+#[serde_as]
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CreateApiKeyResponse {
+    #[serde_as(as = "DisplayFromStr")]
     pub id: i64,
     pub name: String,
     pub key_prefix: String,
@@ -16,8 +19,10 @@ pub struct CreateApiKeyResponse {
     pub created_at: String,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ApiKeyResponse {
+    #[serde_as(as = "DisplayFromStr")]
     pub id: i64,
     pub name: String,
     pub key_prefix: String,
@@ -54,7 +59,7 @@ mod tests {
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"token\":\"dt_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6\""));
-        assert!(json.contains("\"id\":7"));
+        assert!(json.contains("\"id\":\"7\""));
         assert!(json.contains("\"key_prefix\":\"dt_a1b2c3d4\""));
     }
 

@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UserResponse = {
-    id: number;
+    id: string;
     username: string;
     email: string;
     email_verified: boolean;
