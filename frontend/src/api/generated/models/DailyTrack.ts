@@ -8,7 +8,7 @@ export type DailyTrack = {
      */
     id: number;
     /**
-     * Start time of the 30-minute period (must be at :00 or :30)
+     * Start time of the period (must be at :00 or :30)
      */
     start_time: string;
     /**
@@ -27,5 +27,9 @@ export type DailyTrack = {
      * Optional notes or comments for this time period
      */
     comment?: string;
+    /**
+     * Activity length in minutes; must be a positive multiple of 30 and at most 1440 (24 hours)
+     */
+    duration_minutes: number;
 };
 

@@ -19,7 +19,7 @@ fn main() {
         println!("{}", daily_track_item);
         println!("-----------\n");
     }
-    let data = NewDailyTrack::new(1, Utc::now().naive_utc(), None, None, None);
+    let data = NewDailyTrack::new(1, Utc::now().naive_utc(), None, None, None, 30);
     let result = diesel::insert_into(schema::daily_track::table)
         .values(&data)
         .execute(connection)

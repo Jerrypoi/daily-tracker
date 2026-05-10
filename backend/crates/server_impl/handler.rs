@@ -34,6 +34,25 @@ pub(crate) fn is_valid_hex_color(value: &str) -> bool {
     bytes[1..].iter().all(|b| b.is_ascii_hexdigit())
 }
 
+/// Maximum allowed duration for a single daily track, in minutes (24h).
+/// Bounds the overlap query window and prevents pathological values.
+const MAX_DURATION_MINUTES: i32 = 24 * 60;
+
+pub(crate) fn validate_duration_minutes(duration_minutes: i32) -> Result<(), ApiError> {
+    if duration_minutes <= 0 || duration_minutes % 30 != 0 {
+        return Err(ApiError::BadRequest(
+            "duration_minutes must be a positive multiple of 30".to_string(),
+        ));
+    }
+    if duration_minutes > MAX_DURATION_MINUTES {
+        return Err(ApiError::BadRequest(format!(
+            "duration_minutes must not exceed {} (24 hours)",
+            MAX_DURATION_MINUTES
+        )));
+    }
+    Ok(())
+}
+
 pub async fn get_topics(
     Extension(user_id): Extension<i64>,
     Query(params): Query<GetTopicsParams>,
@@ -209,6 +228,8 @@ pub async fn create_daily_track(
         ));
     }
 
+    validate_duration_minutes(req.duration_minutes)?;
+
     let topic = db::get_topic_by_id_for_user(req.topic_id, user_id).map_err(|e| {
         log::error!("Failed to verify topic: {}", e);
         ApiError::InternalServerError("Failed to verify topic".to_string())
@@ -224,12 +245,20 @@ pub async fn create_daily_track(
     let start_time_naive = req.start_time.naive_utc();
     let topic_id = topic.map(|t| t.id);
 
-    let db_track = db::create_daily_track(start_time_naive, topic_id, req.comment, Some(user_id))
-        .map_err(|e| match e {
+    let db_track = db::create_daily_track(
+        start_time_naive,
+        topic_id,
+        req.comment,
+        Some(user_id),
+        req.duration_minutes,
+    )
+    .map_err(|e| match e {
         diesel::result::Error::DatabaseError(
             diesel::result::DatabaseErrorKind::UniqueViolation,
             _,
-        ) => ApiError::Conflict("A record already exists for this time period".to_string()),
+        ) => ApiError::Conflict(
+            "An overlapping record already exists for this time period".to_string(),
+        ),
         _ => {
             log::error!("Failed to create daily track: {}", e);
             ApiError::InternalServerError("Failed to create daily track".to_string())
@@ -265,6 +294,8 @@ pub async fn update_daily_track(
     Path(id): Path<i64>,
     Json(req): Json<UpdateDailyTrackRequest>,
 ) -> Result<Json<DailyTrack>, ApiError> {
+    validate_duration_minutes(req.duration_minutes)?;
+
     let topic = db::get_topic_by_id_for_user(req.topic_id, user_id).map_err(|e| {
         log::error!("Failed to verify topic: {}", e);
         ApiError::InternalServerError("Failed to verify topic".to_string())
@@ -277,10 +308,19 @@ pub async fn update_daily_track(
         )));
     };
 
-    let track = db::update_daily_track(id, topic.id, req.comment, user_id).map_err(|e| {
-        log::error!("Failed to update daily track: {}", e);
-        ApiError::InternalServerError("Failed to update daily track".to_string())
-    })?;
+    let track = db::update_daily_track(id, topic.id, req.comment, user_id, req.duration_minutes)
+        .map_err(|e| match e {
+            diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _,
+            ) => ApiError::Conflict(
+                "An overlapping record already exists for this time period".to_string(),
+            ),
+            _ => {
+                log::error!("Failed to update daily track: {}", e);
+                ApiError::InternalServerError("Failed to update daily track".to_string())
+            }
+        })?;
 
     match track {
         Some(t) => Ok(Json(db_daily_track_to_daily_track(&t))),

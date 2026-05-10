@@ -436,7 +436,7 @@
             "post": {
                 "tags": ["DailyTrack"],
                 "summary": "Create a new daily track record",
-                "description": "Creates a new daily track record. The start_time must be at :00 or :30 minutes of an hour.",
+                "description": "Creates a new daily track record. The start_time must be at :00 or :30 minutes of an hour. duration_minutes must be a positive multiple of 30 (max 1440). Tracks for the same user may not overlap.",
                 "operationId": "createDailyTrack",
                 "consumes": ["application/json"],
                 "produces": ["application/json"],
@@ -459,7 +459,7 @@
                         }
                     },
                     "400": {
-                        "description": "Invalid input (e.g., start_time not at :00 or :30)",
+                        "description": "Invalid input (e.g., start_time not at :00 or :30, or duration_minutes not a positive multiple of 30)",
                         "schema": {
                             "$ref": "#/definitions/ErrorResponse"
                         }
@@ -471,7 +471,7 @@
                         }
                     },
                     "409": {
-                        "description": "A record already exists for this time period",
+                        "description": "An overlapping record already exists for this time period",
                         "schema": {
                             "$ref": "#/definitions/ErrorResponse"
                         }
@@ -526,7 +526,7 @@
             "put": {
                 "tags": ["DailyTrack"],
                 "summary": "Update a daily track record",
-                "description": "Updates a daily track record's topic and comment by its ID.",
+                "description": "Updates a daily track record's topic, comment, and duration by its ID. duration_minutes must be a positive multiple of 30 (max 1440). The new duration may not cause the track to overlap any other track for the same user.",
                 "operationId": "updateDailyTrack",
                 "consumes": ["application/json"],
                 "produces": ["application/json"],
@@ -564,6 +564,12 @@
                     },
                     "404": {
                         "description": "Daily track or referenced topic not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "An overlapping record already exists for this time period",
                         "schema": {
                             "$ref": "#/definitions/ErrorResponse"
                         }
@@ -694,7 +700,7 @@
         },
         "DailyTrack": {
             "type": "object",
-            "required": ["id", "start_time", "created_at", "updated_at", "topic_id"],
+            "required": ["id", "start_time", "created_at", "updated_at", "topic_id", "duration_minutes"],
             "properties": {
                 "id": {
                     "type": "integer",
@@ -704,7 +710,7 @@
                 "start_time": {
                     "type": "string",
                     "format": "date-time",
-                    "description": "Start time of the 30-minute period (must be at :00 or :30)"
+                    "description": "Start time of the period (must be at :00 or :30)"
                 },
                 "created_at": {
                     "type": "string",
@@ -724,17 +730,25 @@
                 "comment": {
                     "type": "string",
                     "description": "Optional notes or comments for this time period"
+                },
+                "duration_minutes": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 30,
+                    "maximum": 1440,
+                    "multipleOf": 30,
+                    "description": "Activity length in minutes; must be a positive multiple of 30 and at most 1440 (24 hours)"
                 }
             }
         },
         "CreateDailyTrackRequest": {
             "type": "object",
-            "required": ["start_time", "topic_id"],
+            "required": ["start_time", "topic_id", "duration_minutes"],
             "properties": {
                 "start_time": {
                     "type": "string",
                     "format": "date-time",
-                    "description": "Start time of the 30-minute period (must be at :00 or :30)",
+                    "description": "Start time of the period (must be at :00 or :30)",
                     "example": "2026-01-03T10:00:00Z"
                 },
                 "topic_id": {
@@ -746,12 +760,21 @@
                     "type": "string",
                     "description": "Optional notes or comments",
                     "example": "Working on API design"
+                },
+                "duration_minutes": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 30,
+                    "maximum": 1440,
+                    "multipleOf": 30,
+                    "description": "Activity length in minutes; must be a positive multiple of 30 and at most 1440 (24 hours). Tracks for the same user may not overlap.",
+                    "example": 60
                 }
             }
         },
         "UpdateDailyTrackRequest": {
             "type": "object",
-            "required": ["topic_id"],
+            "required": ["topic_id", "duration_minutes"],
             "properties": {
                 "topic_id": {
                     "type": "integer",
@@ -761,6 +784,15 @@
                 "comment": {
                     "type": "string",
                     "description": "Optional comment for the time period."
+                },
+                "duration_minutes": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 30,
+                    "maximum": 1440,
+                    "multipleOf": 30,
+                    "description": "Activity length in minutes; must be a positive multiple of 30 and at most 1440 (24 hours). Tracks for the same user may not overlap.",
+                    "example": 60
                 }
             }
         },

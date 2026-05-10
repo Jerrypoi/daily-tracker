@@ -12,4 +12,5 @@ node_modules
 cli/dist
 *.tsbuildinfo
 
+.worktree
 

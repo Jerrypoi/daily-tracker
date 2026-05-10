@@ -41,6 +41,7 @@ pub struct DailyTrack {
     pub topic_id: Option<i64>,
     pub comment: Option<String>,
     pub user_id: Option<i64>,
+    pub duration_minutes: i32,
 }
 
 #[derive(Insertable)]
@@ -54,6 +55,7 @@ pub struct NewDailyTrack {
     pub topic_id: Option<i64>,
     pub comment: Option<String>,
     pub user_id: Option<i64>,
+    pub duration_minutes: i32,
 }
 
 impl NewDailyTrack {
@@ -63,6 +65,7 @@ impl NewDailyTrack {
         topic_id: Option<i64>,
         comment: Option<String>,
         user_id: Option<i64>,
+        duration_minutes: i32,
     ) -> Self {
         Self {
             id,
@@ -70,6 +73,7 @@ impl NewDailyTrack {
             topic_id,
             comment,
             user_id,
+            duration_minutes,
             created_at: Utc::now().naive_utc(),
             updated_at: None,
         }
@@ -100,13 +104,13 @@ mod tests {
         let user_id = None;
 
         let id = 123;
-        let track = NewDailyTrack::new(id, start_time, topic_id, comment.clone(), user_id);
+        let track = NewDailyTrack::new(id, start_time, topic_id, comment.clone(), user_id, 30);
 
-        // simple field passthroughs
         assert_eq!(track.id, id);
         assert_eq!(track.start_time, start_time);
         assert_eq!(track.topic_id, topic_id);
         assert_eq!(track.comment, comment);
+        assert_eq!(track.duration_minutes, 30);
 
         // created_at should be set to "now" (roughly) – just assert it is not the default
         // and is >= start_time to avoid relying on exact timing.
@@ -126,15 +130,14 @@ mod tests {
             topic_id: None,
             comment: comment.clone(),
             user_id: None,
+            duration_minutes: 30,
         };
 
         let rendered = track.to_string();
 
-        // The string representation should at least include the start_time and comment.
         assert!(rendered.contains(&start_time.to_string()));
         assert!(rendered.contains(comment.as_ref().unwrap()));
 
-        // And it should contain the "id:" prefix from the Display implementation.
         assert!(rendered.contains("id:"));
     }
 
@@ -149,9 +152,9 @@ mod tests {
             topic_id: None,
             comment: None,
             user_id: None,
+            duration_minutes: 30,
         };
         let rendered = track.to_string();
-        // When comment is None, it should display empty string for comment
         assert!(rendered.contains("comment: "));
     }
 
@@ -159,7 +162,7 @@ mod tests {
     fn daily_track_new_with_user_id() {
         let start_time = Utc::now().naive_utc();
         let user_id = Some(10);
-        let track = NewDailyTrack::new(123, start_time, None, None, user_id);
+        let track = NewDailyTrack::new(123, start_time, None, None, user_id, 30);
         assert_eq!(track.user_id, user_id);
     }
 
@@ -167,8 +170,15 @@ mod tests {
     fn daily_track_new_with_topic_id() {
         let start_time = Utc::now().naive_utc();
         let topic_id = Some(1);
-        let track = NewDailyTrack::new(123, start_time, topic_id, None, None);
+        let track = NewDailyTrack::new(123, start_time, topic_id, None, None, 30);
         assert_eq!(track.topic_id, topic_id);
+    }
+
+    #[test]
+    fn daily_track_new_with_duration_minutes() {
+        let start_time = Utc::now().naive_utc();
+        let track = NewDailyTrack::new(123, start_time, None, None, None, 90);
+        assert_eq!(track.duration_minutes, 90);
     }
 
     #[test]

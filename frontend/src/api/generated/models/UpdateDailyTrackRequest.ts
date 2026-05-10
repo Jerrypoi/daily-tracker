@@ -11,5 +11,9 @@ export type UpdateDailyTrackRequest = {
      * Optional comment for the time period.
      */
     comment?: string;
+    /**
+     * Activity length in minutes; must be a positive multiple of 30 and at most 1440 (24 hours). Tracks for the same user may not overlap.
+     */
+    duration_minutes: number;
 };
 

@@ -8,3 +8,4 @@ export type UserResponse = {
     email: string;
     email_verified: boolean;
 };
+

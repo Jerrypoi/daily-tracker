@@ -21,9 +21,13 @@ TOPICS
 DAILY TRACKS  (alias: \`tracks\`)
   tracks list [--start <YYYY-MM-DD>] [--end <YYYY-MM-DD>] [--topic <id>]
   tracks get <id>
-  tracks create --start-time <ISO-8601> --topic <id> [--comment <text>]
-  tracks update <id> --topic <id> [--comment <text>]
+  tracks create --start-time <ISO-8601> --topic <id>
+                --duration-minutes <n> [--comment <text>]
+  tracks update <id> --topic <id> --duration-minutes <n> [--comment <text>]
   tracks delete <id>
+
+  duration-minutes must be a positive multiple of 30 (max 1440). Tracks for the
+  same user may not overlap.
 
 API KEYS  (JWT required — set DAILY_TRACKER_JWT)
   api-keys list
@@ -43,5 +47,5 @@ EXAMPLES
   DAILY_TRACKER_API_KEY=dt_... daily-tracker topics list
   daily-tracker topics create --name "deep work" --color "#3b82f6"
   daily-tracker tracks create --start-time 2026-04-27T09:00:00Z --topic 12 \\
-    --comment "review PRs"
+    --duration-minutes 60 --comment "review PRs"
   daily-tracker tracks list --start 2026-04-20 --end 2026-04-27`;

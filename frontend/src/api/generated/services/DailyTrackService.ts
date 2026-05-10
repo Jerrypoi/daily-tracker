@@ -39,7 +39,7 @@ export class DailyTrackService {
     }
     /**
      * Create a new daily track record
-     * Creates a new daily track record. The start_time must be at :00 or :30 minutes of an hour.
+     * Creates a new daily track record. The start_time must be at :00 or :30 minutes of an hour. duration_minutes must be a positive multiple of 30 (max 1440). Tracks for the same user may not overlap.
      * @param body Daily track record to be created
      * @returns DailyTrack Daily track record created successfully
      * @throws ApiError
@@ -52,9 +52,9 @@ export class DailyTrackService {
             url: '/daily-tracks',
             body: body,
             errors: {
-                400: `Invalid input (e.g., start_time not at :00 or :30)`,
+                400: `Invalid input (e.g., start_time not at :00 or :30, or duration_minutes not a positive multiple of 30)`,
                 404: `Referenced topic not found`,
-                409: `A record already exists for this time period`,
+                409: `An overlapping record already exists for this time period`,
                 500: `Internal server error`,
             },
         });
@@ -83,7 +83,7 @@ export class DailyTrackService {
     }
     /**
      * Update a daily track record
-     * Updates a daily track record's topic and comment by its ID.
+     * Updates a daily track record's topic, comment, and duration by its ID. duration_minutes must be a positive multiple of 30 (max 1440). The new duration may not cause the track to overlap any other track for the same user.
      * @param id ID of the daily track record to update
      * @param body Daily track update payload
      * @returns DailyTrack Daily track updated successfully
@@ -103,6 +103,7 @@ export class DailyTrackService {
             errors: {
                 400: `Invalid input`,
                 404: `Daily track or referenced topic not found`,
+                409: `An overlapping record already exists for this time period`,
                 500: `Internal server error`,
             },
         });

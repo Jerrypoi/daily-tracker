@@ -48,6 +48,7 @@ pub fn db_daily_track_to_daily_track(track: &db_model::models::DailyTrack) -> Da
         updated_at,
         topic_id: track.topic_id.unwrap_or(0),
         comment: track.comment.clone(),
+        duration_minutes: track.duration_minutes,
     }
 }
 
@@ -122,6 +123,7 @@ mod tests {
             topic_id: Some(10),
             comment: Some("test comment".to_string()),
             user_id: Some(1),
+            duration_minutes: 90,
         };
 
         let track = db_daily_track_to_daily_track(&db_track);
@@ -131,6 +133,7 @@ mod tests {
         assert_eq!(track.comment, Some("test comment".to_string()));
         assert_eq!(track.start_time, Utc.from_utc_datetime(&naive_start));
         assert_eq!(track.updated_at, Utc.from_utc_datetime(&naive_updated));
+        assert_eq!(track.duration_minutes, 90);
     }
 
     #[test]
@@ -146,6 +149,7 @@ mod tests {
             topic_id: None,
             comment: None,
             user_id: None,
+            duration_minutes: 30,
         };
 
         let track = db_daily_track_to_daily_track(&db_track);
@@ -153,6 +157,7 @@ mod tests {
         assert_eq!(track.topic_id, 0);
         assert_eq!(track.comment, None);
         assert_eq!(track.updated_at, Utc.from_utc_datetime(&naive_now));
+        assert_eq!(track.duration_minutes, 30);
     }
 
     #[test]

@@ -78,7 +78,8 @@ daily-tracker topics update 12 --name "focus" --color "#ef4444"
 
 daily-tracker tracks list --start 2026-04-20 --end 2026-04-27
 daily-tracker tracks create --start-time 2026-04-27T09:00:00Z --topic 12 \
-  --comment "review PRs"
+  --duration-minutes 60 --comment "review PRs"
+daily-tracker tracks update 87 --topic 12 --duration-minutes 90
 daily-tracker tracks delete 87
 ```
 
