@@ -11,11 +11,13 @@ export type DailyTrackInput = {
   startTime: string
   topicId: number
   comment?: string
+  durationMinutes: number
 }
 
 export type UpdateDailyTrackInput = {
   topicId: number
   comment?: string
+  durationMinutes: number
 }
 
 // Deleted unused url helpers
@@ -30,6 +32,13 @@ function parseErrorBody(body: unknown): string {
   return 'Request failed'
 }
 
+function extractErrorBody(err: unknown): unknown {
+  if (typeof err === 'object' && err !== null && 'body' in err) {
+    return (err as { body: unknown }).body
+  }
+  return err
+}
+
 export function listDailyTracks(filter: DailyTrackFilter) {
   return DailyTrackService.getDailyTracks(
     filter.startDate,
@@ -38,30 +47,36 @@ export function listDailyTracks(filter: DailyTrackFilter) {
   )
 }
 
-export function createDailyTrack(input: DailyTrackInput) {
-  return DailyTrackService.createDailyTrack({
-    start_time: input.startTime,
-    topic_id: input.topicId,
-    comment: input.comment,
-  })
+export async function createDailyTrack(input: DailyTrackInput) {
+  try {
+    return await DailyTrackService.createDailyTrack({
+      start_time: input.startTime,
+      topic_id: input.topicId,
+      comment: input.comment,
+      duration_minutes: input.durationMinutes,
+    })
+  } catch (err: unknown) {
+    throw new Error(parseErrorBody(extractErrorBody(err)))
+  }
 }
 
 export async function updateDailyTrack(id: number, input: UpdateDailyTrackInput) {
   try {
     return await DailyTrackService.updateDailyTrack(id, {
       topic_id: input.topicId,
-      comment: input.comment
+      comment: input.comment,
+      duration_minutes: input.durationMinutes,
     })
-  } catch (err: any) {
-    throw new Error(parseErrorBody(err?.body || err))
+  } catch (err: unknown) {
+    throw new Error(parseErrorBody(extractErrorBody(err)))
   }
 }
 
 export async function deleteDailyTrack(id: number) {
   try {
     await DailyTrackService.deleteDailyTrack(id)
-  } catch (err: any) {
-    throw new Error(parseErrorBody(err?.body || err))
+  } catch (err: unknown) {
+    throw new Error(parseErrorBody(extractErrorBody(err)))
   }
 }
 

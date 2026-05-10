@@ -196,37 +196,72 @@ pub fn get_daily_tracks(
     query.load(&mut *connection)
 }
 
+/// Returns true when the user already has a track that overlaps the half-open
+/// interval `[start_time, start_time + duration_minutes minutes)`. If
+/// `exclude_id` is supplied, that track id is ignored (used for updates).
+fn has_overlapping_track(
+    connection: &mut DbConn,
+    user_id: Option<i64>,
+    start_time: NaiveDateTime,
+    duration_minutes: i32,
+    exclude_id: Option<i64>,
+) -> Result<bool, DieselError> {
+    use diesel::sql_types::{Bool, Datetime as SqlDatetime};
+
+    let new_end = start_time + chrono::Duration::minutes(duration_minutes as i64);
+
+    let mut query = schema::daily_track::dsl::daily_track
+        .filter(schema::daily_track::start_time.lt(new_end))
+        .filter(
+            diesel::dsl::sql::<Bool>(
+                "DATE_ADD(start_time, INTERVAL duration_minutes MINUTE) > ",
+            )
+            .bind::<SqlDatetime, _>(start_time),
+        )
+        .into_boxed();
+
+    if let Some(uid) = user_id {
+        query = query.filter(schema::daily_track::user_id.eq(uid));
+    }
+    if let Some(id) = exclude_id {
+        query = query.filter(schema::daily_track::id.ne(id));
+    }
+
+    Ok(query
+        .select(DailyTrack::as_select())
+        .first(connection)
+        .optional()?
+        .is_some())
+}
+
 pub fn create_daily_track(
     start_time: NaiveDateTime,
     topic_id: Option<i64>,
     comment: Option<String>,
     user_id: Option<i64>,
+    duration_minutes: i32,
 ) -> Result<DailyTrack, DieselError> {
     let mut connection = DB_POOL.get().unwrap();
 
-    let mut query = schema::daily_track::dsl::daily_track
-        .filter(schema::daily_track::start_time.eq(&start_time))
-        .into_boxed();
-    if let Some(ref uid) = user_id {
-        query = query.filter(schema::daily_track::user_id.eq(uid.clone()));
-    }
-    let existing: Option<DailyTrack> = query
-        .select(DailyTrack::as_select())
-        .first(&mut *connection)
-        .optional()?;
-
-    if existing.is_some() {
+    if has_overlapping_track(&mut connection, user_id, start_time, duration_minutes, None)? {
         return Err(DieselError::DatabaseError(
             diesel::result::DatabaseErrorKind::UniqueViolation,
             Box::new(format!(
-                "A record already exists for time period {}",
+                "An overlapping record already exists for time period starting at {}",
                 start_time
             )),
         ));
     }
 
     let id = generate_snowflake_id();
-    let new_track = NewDailyTrack::new(id, start_time, topic_id, comment, user_id);
+    let new_track = NewDailyTrack::new(
+        id,
+        start_time,
+        topic_id,
+        comment,
+        user_id,
+        duration_minutes,
+    );
 
     diesel::insert_into(schema::daily_track::table)
         .values(&new_track)
@@ -253,6 +288,7 @@ pub fn update_daily_track(
     topic_id: i64,
     comment: Option<String>,
     user_id: i64,
+    duration_minutes: i32,
 ) -> Result<Option<DailyTrack>, DieselError> {
     let mut connection = DB_POOL.get().unwrap();
     let Some(existing_track) = schema::daily_track::dsl::daily_track
@@ -265,10 +301,27 @@ pub fn update_daily_track(
         return Ok(None);
     };
 
+    if has_overlapping_track(
+        &mut connection,
+        Some(user_id),
+        existing_track.start_time,
+        duration_minutes,
+        Some(existing_track.id),
+    )? {
+        return Err(DieselError::DatabaseError(
+            diesel::result::DatabaseErrorKind::UniqueViolation,
+            Box::new(format!(
+                "An overlapping record already exists for time period starting at {}",
+                existing_track.start_time
+            )),
+        ));
+    }
+
     diesel::update(schema::daily_track::dsl::daily_track.find(existing_track.id))
         .set((
             schema::daily_track::dsl::topic_id.eq(Some(topic_id)),
             schema::daily_track::dsl::comment.eq(comment),
+            schema::daily_track::dsl::duration_minutes.eq(duration_minutes),
             schema::daily_track::dsl::updated_at.eq(Some(chrono::Utc::now().naive_utc())),
         ))
         .execute(&mut *connection)?;

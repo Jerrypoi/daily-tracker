@@ -130,6 +130,32 @@ function dateFromKey(dayKey: string): Date | null {
   return new Date(year, month - 1, day)
 }
 
+/**
+ * Returns the range of hour cells a track visually occupies on the calendar
+ * board. Tracks may extend past midnight; hours past day end are clamped to 24.
+ * Sub-hour durations (multiples of 30) round up to the next hour cell so the UI
+ * doesn't show a partial block, since the grid is hour-aligned today.
+ */
+function trackHourRange(track: DailyTrack): {
+  dayKey: string
+  startHour: number
+  endHourExclusive: number
+} {
+  const start = parseApiDateTime(track.start_time)
+  const startHour = start.getHours()
+  const durationMinutes = Math.max(track.duration_minutes ?? 30, 30)
+  const minuteOffset = start.getMinutes()
+  const endHourExclusive = Math.min(
+    24,
+    startHour + Math.ceil((minuteOffset + durationMinutes) / 60),
+  )
+  return {
+    dayKey: toDateKey(start),
+    startHour,
+    endHourExclusive,
+  }
+}
+
 export function DailyTracksPage() {
   const [tracks, setTracks] = useState<DailyTrack[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
@@ -263,6 +289,11 @@ export function DailyTracksPage() {
     return map
   }, [topics])
 
+  /**
+   * Buckets each track into the slot key for its starting hour only. The cells
+   * that lie inside the track's duration are marked separately in
+   * `occupiedHourSet` and don't appear in this map.
+   */
   const tracksBySlot = useMemo(() => {
     const grouped = new Map<string, DailyTrack[]>()
     for (const track of tracks) {
@@ -285,6 +316,28 @@ export function DailyTracksPage() {
     return grouped
   }, [tracks])
 
+  /**
+   * Set of `slotKey(day, hour)` values covered by an existing track's full
+   * duration (including the start hour). Used to suppress the "+" button on
+   * hours visually claimed by a track that started earlier.
+   */
+  const occupiedHourSet = useMemo(() => {
+    const occupied = new Set<string>()
+    for (const track of tracks) {
+      const start = parseApiDateTime(track.start_time)
+      const { startHour, endHourExclusive } = trackHourRange(track)
+      for (let h = startHour; h < endHourExclusive; h += 1) {
+        occupied.add(slotKey(start, h))
+      }
+    }
+    return occupied
+  }, [tracks])
+
+  /**
+   * One segment per track (not per merged adjacency). The segment width comes
+   * directly from `duration_minutes`, so a 3-hour activity is a single block
+   * rather than three adjacent rows.
+   */
   const mergedSegmentsByDay = useMemo(() => {
     const merged = new Map<
       string,
@@ -296,40 +349,22 @@ export function DailyTracksPage() {
     >()
 
     for (const day of weekDays) {
-      const dayKey = toDateKey(day)
-      const segments: Array<{
-        track: DailyTrack
-        startHour: number
-        endHourExclusive: number
-      }> = []
+      merged.set(toDateKey(day), [])
+    }
 
-      let hour = 0
-      while (hour < 24) {
-        const slotEntries = tracksBySlot.get(slotKey(day, hour)) ?? []
-        if (slotEntries.length !== 1) {
-          hour += 1
-          continue
-        }
+    for (const track of tracks) {
+      const { dayKey, startHour, endHourExclusive } = trackHourRange(track)
+      const bucket = merged.get(dayKey)
+      if (!bucket) continue
+      bucket.push({ track, startHour, endHourExclusive })
+    }
 
-        const track = slotEntries[0]
-        let endHourExclusive = hour + 1
-        while (endHourExclusive < 24) {
-          const nextEntries = tracksBySlot.get(slotKey(day, endHourExclusive)) ?? []
-          if (nextEntries.length !== 1 || nextEntries[0].topic_id !== track.topic_id) {
-            break
-          }
-          endHourExclusive += 1
-        }
-
-        segments.push({ track, startHour: hour, endHourExclusive })
-        hour = endHourExclusive
-      }
-
-      merged.set(dayKey, segments)
+    for (const segments of merged.values()) {
+      segments.sort((a, b) => a.startHour - b.startHour)
     }
 
     return merged
-  }, [tracksBySlot, weekDays])
+  }, [tracks, weekDays])
 
   function openCreateModal(day: Date, hour: number, duration = 1) {
     setSaveError(null)
@@ -342,9 +377,11 @@ export function DailyTracksPage() {
 
   function openEditModal(track: DailyTrack) {
     const dt = parseApiDateTime(track.start_time)
+    const { startHour, endHourExclusive } = trackHourRange(track)
     setSaveError(null)
     setTopicId(String(track.topic_id))
     setComment(track.comment ?? '')
+    setEndHourExclusive(String(Math.max(endHourExclusive, startHour + 1)))
     setModalState({ mode: 'edit', day: dt, hour: dt.getHours(), track })
   }
 
@@ -498,16 +535,17 @@ export function DailyTracksPage() {
           return
         }
 
-        const parsedDuration = parsedEndExclusive - startHour
+        const parsedDurationHours = parsedEndExclusive - startHour
+        const durationMinutes = parsedDurationHours * 60
 
-        const conflictHour = Array.from({ length: parsedDuration }, (_, offset) => {
+        const conflictHour = Array.from({ length: parsedDurationHours }, (_, offset) => {
           const slotDateTime = new Date(modalState.day)
           slotDateTime.setHours(modalState.hour + offset, 0, 0, 0)
           return {
             key: slotKey(slotDateTime, slotDateTime.getHours()),
             label: `${slotDateTime.toLocaleDateString()} ${String(slotDateTime.getHours()).padStart(2, '0')}:00`,
           }
-        }).find(({ key }) => (tracksBySlot.get(key) ?? []).length > 0)
+        }).find(({ key }) => occupiedHourSet.has(key))
 
         if (conflictHour) {
           setSaveError(`slot already occupied: ${conflictHour.label}`)
@@ -518,19 +556,30 @@ export function DailyTracksPage() {
         const slotDateTime = new Date(modalState.day)
         slotDateTime.setHours(modalState.hour, 0, 0, 0)
 
-        for (let offset = 0; offset < parsedDuration; offset += 1) {
-          const start = new Date(slotDateTime)
-          start.setHours(start.getHours() + offset)
-          await createDailyTrack({
-            startTime: start.toISOString(),
-            topicId: parsedTopicId,
-            comment: comment.trim() || undefined,
-          })
-        }
+        await createDailyTrack({
+          startTime: slotDateTime.toISOString(),
+          topicId: parsedTopicId,
+          comment: comment.trim() || undefined,
+          durationMinutes,
+        })
       } else {
+        const startHour = modalState.hour
+        const parsedEndExclusive = Number(endHourExclusive)
+        if (
+          !Number.isInteger(parsedEndExclusive) ||
+          parsedEndExclusive <= startHour ||
+          parsedEndExclusive > 24
+        ) {
+          setSaveError('end time must be after start and on the same day (before midnight)')
+          setSaving(false)
+          return
+        }
+        const durationMinutes = (parsedEndExclusive - startHour) * 60
+
         await updateDailyTrack(modalState.track.id, {
           topicId: parsedTopicId,
           comment: comment.trim() || undefined,
+          durationMinutes,
         })
       }
 
@@ -713,6 +762,17 @@ export function DailyTracksPage() {
                         >
                           {Array.from({ length: 24 }, (_, hour) => {
                             const entries = tracksBySlot.get(slotKey(day, hour)) ?? []
+                            const isOccupiedByLongerTrack =
+                              entries.length === 0 && occupiedHourSet.has(slotKey(day, hour))
+                            if (isOccupiedByLongerTrack) {
+                              return (
+                                <div
+                                  key={slotKey(day, hour)}
+                                  className="slot occupied-slot occupied-spillover"
+                                  aria-hidden="true"
+                                />
+                              )
+                            }
                             if (entries.length === 0) {
                               return (
                                 <button
@@ -958,53 +1018,42 @@ export function DailyTracksPage() {
                 : 'Edit Daily Track'}
             </h3>
             <p className="modal-meta">
-              {modalState.mode === 'create' ? (
-                <>
-                  {modalState.day.toLocaleDateString()}{' '}
-                  <strong>
-                    {String(modalState.hour).padStart(2, '0')}:00
-                  </strong>
-                  {' → '}
-                  <strong>{String(endHourExclusive).padStart(2, '0')}:00</strong>
-                  <span className="modal-meta-hint">
-                    {' '}
-                    (
-                    {Math.max(0, Number(endHourExclusive) - modalState.hour) || '—'}{' '}
-                    {Number(endHourExclusive) - modalState.hour === 1 ? 'hour' : 'hours'})
-                  </span>
-                </>
-              ) : (
-                <>
-                  {modalState.day.toLocaleDateString()}{' '}
-                  {String(modalState.hour).padStart(2, '0')}:00
-                </>
-              )}
+              {modalState.day.toLocaleDateString()}{' '}
+              <strong>
+                {String(modalState.hour).padStart(2, '0')}:00
+              </strong>
+              {' → '}
+              <strong>{String(endHourExclusive).padStart(2, '0')}:00</strong>
+              <span className="modal-meta-hint">
+                {' '}
+                (
+                {Math.max(0, Number(endHourExclusive) - modalState.hour) || '—'}{' '}
+                {Number(endHourExclusive) - modalState.hour === 1 ? 'hour' : 'hours'})
+              </span>
             </p>
             <label>
               Topic
               <TopicCascadeSelect topics={topics} value={topicId} onChange={setTopicId} />
             </label>
-            {modalState.mode === 'create' && (
-              <label>
-                End time
-                <select
-                  value={endHourExclusive}
-                  onChange={(event) => setEndHourExclusive(event.target.value)}
-                >
-                  {Array.from({ length: 24 - modalState.hour }, (_, index) => {
-                    const endH = modalState.hour + 1 + index
-                    const span = endH - modalState.hour
-                    return (
-                      <option key={endH} value={String(endH)}>
-                        {String(endH).padStart(2, '0')}:00 ({span}{' '}
-                        {span === 1 ? 'hour' : 'hours'})
-                      </option>
-                    )
-                  })}
-                </select>
-                <span className="field-hint">The end hour is not included (same as drag-select).</span>
-              </label>
-            )}
+            <label>
+              End time
+              <select
+                value={endHourExclusive}
+                onChange={(event) => setEndHourExclusive(event.target.value)}
+              >
+                {Array.from({ length: 24 - modalState.hour }, (_, index) => {
+                  const endH = modalState.hour + 1 + index
+                  const span = endH - modalState.hour
+                  return (
+                    <option key={endH} value={String(endH)}>
+                      {String(endH).padStart(2, '0')}:00 ({span}{' '}
+                      {span === 1 ? 'hour' : 'hours'})
+                    </option>
+                  )
+                })}
+              </select>
+              <span className="field-hint">The end hour is not included (same as drag-select).</span>
+            </label>
             <label>
               Comment (optional)
               <textarea

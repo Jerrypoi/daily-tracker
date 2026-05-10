@@ -206,9 +206,13 @@ async function tracks(
       return;
     }
     case "create": {
+      const durationMinutes = intFlag(flags, "duration-minutes", {
+        required: true,
+      })!;
       const body: Record<string, unknown> = {
         start_time: requireFlag(flags, "start-time"),
         topic_id: intFlag(flags, "topic", { required: true })!,
+        duration_minutes: durationMinutes,
       };
       const comment = strFlag(flags, "comment");
       if (comment !== undefined) body.comment = comment;
@@ -217,8 +221,12 @@ async function tracks(
     }
     case "update": {
       const id = positionalInt(rest, 0, "track id");
+      const durationMinutes = intFlag(flags, "duration-minutes", {
+        required: true,
+      })!;
       const body: Record<string, unknown> = {
         topic_id: intFlag(flags, "topic", { required: true })!,
+        duration_minutes: durationMinutes,
       };
       const comment = strFlag(flags, "comment");
       if (comment !== undefined) body.comment = comment;

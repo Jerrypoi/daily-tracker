@@ -1,10 +1,13 @@
-.PHONY: gen_backend frontend_install frontend_dev frontend_build frontend_generate_api cli_help
+.PHONY: gen_backend run_backend backend_migrate frontend_install frontend_dev frontend_build frontend_generate_api cli_help
 
 gen_backend:
 	openapi-generator generate -i swagger.json -g rust-server -o backend
 
 run_backend:
 	cd backend && cargo run
+
+backend_migrate:
+	cd backend/crates/db_model && diesel migration run
 
 frontend_install:
 	npm --prefix frontend install

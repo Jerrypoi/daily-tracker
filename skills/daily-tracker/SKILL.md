@@ -1,6 +1,6 @@
 ---
 name: daily-tracker
-description: Use to read or modify a user's Daily Tracker data (topics and 30-minute time-slot tracks) from the command line via npx. Trigger when the user asks to log time, add a topic, list tracks, summarize a day/week, or otherwise interact with their Daily Tracker account. Requires DAILY_TRACKER_API_KEY in the environment.
+description: Use to read or modify a user's Daily Tracker data (topics and time-block tracks aligned to 30-minute boundaries) from the command line via npx. Trigger when the user asks to log time, add a topic, list tracks, summarize a day/week, or otherwise interact with their Daily Tracker account. Requires DAILY_TRACKER_API_KEY in the environment.
 ---
 
 # Daily Tracker CLI
@@ -61,15 +61,19 @@ daily-tracker topics create --name <name> [--parent <id>] [--color "#RRGGBB"]
 daily-tracker topics update <id> --name <name> --color "#RRGGBB"
 ```
 
-### Daily tracks (30-minute time slots)
+### Daily tracks
 
-A track records that the user spent a 30-minute slot on a topic. `start_time` must align to `:00` or `:30` and is ISO-8601 (use `Z` for UTC).
+A track records that the user spent a continuous block of time on a topic. The block starts at `start_time` (ISO-8601, must align to `:00` or `:30`, use `Z` for UTC) and lasts `duration_minutes` minutes.
+
+`duration_minutes` must be a positive multiple of 30, max 1440 (24 hours). Tracks for the same user may not overlap — overlapping creates/updates return 409 `CONFLICT`.
 
 ```
 daily-tracker tracks list [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--topic <id>]
 daily-tracker tracks get <id>
-daily-tracker tracks create --start-time <ISO> --topic <id> [--comment <text>]
-daily-tracker tracks update <id> --topic <id> [--comment <text>]
+daily-tracker tracks create --start-time <ISO> --topic <id> \
+  --duration-minutes <n> [--comment <text>]
+daily-tracker tracks update <id> --topic <id> --duration-minutes <n> \
+  [--comment <text>]
 daily-tracker tracks delete <id>
 ```
 
@@ -115,19 +119,20 @@ Always parse stdout as JSON. Do not screen-scrape error messages — branch on t
 
 ## Common workflows
 
-### Log the current 30-minute slot to a topic
+### Log a block of time to a topic
 
 1. Resolve the topic id from a name:
    ```
    daily-tracker topics list | jq -r '.[] | select(.topic_name=="deep work") | .id'
    ```
 2. Compute the slot start (round current time down to :00 or :30, UTC) — e.g. `2026-04-27T14:30:00Z`.
-3. Create the track:
+3. Create the track. Pick a `--duration-minutes` value that is a positive multiple of 30 (e.g. `30`, `60`, `90`, `180`).
    ```
-   daily-tracker tracks create --start-time 2026-04-27T14:30:00Z --topic <id> --comment "<what you did>"
+   daily-tracker tracks create --start-time 2026-04-27T14:30:00Z --topic <id> \
+     --duration-minutes 30 --comment "<what you did>"
    ```
 
-If the slot is already taken the server returns 409 `CONFLICT`; in that case prefer `tracks update <existing-id>`.
+If the new block overlaps an existing track for the user the server returns 409 `CONFLICT`; in that case prefer `tracks update <existing-id> --duration-minutes <new>` or shrink/move the new range.
 
 ### Summarize a day/week
 
@@ -135,11 +140,11 @@ If the slot is already taken the server returns 409 `CONFLICT`; in that case pre
 daily-tracker tracks list --start 2026-04-21 --end 2026-04-27 > /tmp/week.json
 ```
 
-The result is an array of track records — group by `topic_id`, multiply count by 30 minutes for hours.
+The result is an array of track records — group by `topic_id` and sum `duration_minutes` to get total minutes per topic.
 
-### Bulk-create tracks
+### Logging long activities
 
-Loop in shell, one `tracks create` per slot. The server enforces the `:00`/`:30` and uniqueness rules, so let it reject malformed entries rather than pre-validating.
+Send a single `tracks create` with `--duration-minutes` set to the full length (e.g. `180` for a 3-hour block). Do not loop one `tracks create` per 30-minute slot — that pattern was retired when `duration_minutes` was added, and overlap rules will reject the second call anyway.
 
 ## Things to avoid
 

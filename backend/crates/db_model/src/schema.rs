@@ -25,6 +25,7 @@ diesel::table! {
         topic_id -> Nullable<Bigint>,
         comment -> Nullable<Text>,
         user_id -> Nullable<Bigint>,
+        duration_minutes -> Integer,
     }
 }
 
