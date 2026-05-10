@@ -4,18 +4,18 @@ import { DailyTrackService } from './generated'
 export type DailyTrackFilter = {
   startDate?: string
   endDate?: string
-  topicId?: number
+  topicId?: string
 }
 
 export type DailyTrackInput = {
   startTime: string
-  topicId: number
+  topicId: string
   comment?: string
   durationMinutes: number
 }
 
 export type UpdateDailyTrackInput = {
-  topicId: number
+  topicId: string
   comment?: string
   durationMinutes: number
 }
@@ -60,7 +60,7 @@ export async function createDailyTrack(input: DailyTrackInput) {
   }
 }
 
-export async function updateDailyTrack(id: number, input: UpdateDailyTrackInput) {
+export async function updateDailyTrack(id: string, input: UpdateDailyTrackInput) {
   try {
     return await DailyTrackService.updateDailyTrack(id, {
       topic_id: input.topicId,
@@ -72,7 +72,7 @@ export async function updateDailyTrack(id: number, input: UpdateDailyTrackInput)
   }
 }
 
-export async function deleteDailyTrack(id: number) {
+export async function deleteDailyTrack(id: string) {
   try {
     await DailyTrackService.deleteDailyTrack(id)
   } catch (err: unknown) {

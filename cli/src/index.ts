@@ -107,6 +107,25 @@ function intFlag(
   return n;
 }
 
+// IDs are int64 on the server and exceed JS Number.MAX_SAFE_INTEGER, so we
+// keep them as strings end-to-end and only validate that they look like a
+// non-negative decimal integer.
+function idFlag(
+  flags: Flags,
+  name: string,
+  { required = false }: NumOpts = {},
+): string | undefined {
+  const v = flags[name];
+  if (v === undefined || v === true) {
+    if (required) fail("MISSING_FLAG", `Missing required flag --${name}`, 2);
+    return undefined;
+  }
+  if (!/^\d+$/.test(v)) {
+    fail("INVALID_FLAG", `--${name} must be an integer id`, 2);
+  }
+  return v;
+}
+
 function strFlag(
   flags: Flags,
   name: string,
@@ -120,16 +139,15 @@ function strFlag(
   return v;
 }
 
-function positionalInt(rest: string[], idx: number, label: string): number {
+function positionalId(rest: string[], idx: number, label: string): string {
   const raw = rest[idx];
   if (raw === undefined) {
     fail("MISSING_ARG", `Missing positional argument: ${label}`, 2);
   }
-  const n = Number.parseInt(raw, 10);
-  if (Number.isNaN(n)) {
-    fail("INVALID_ARG", `${label} must be an integer`, 2);
+  if (!/^\d+$/.test(raw)) {
+    fail("INVALID_ARG", `${label} must be an integer id`, 2);
   }
-  return n;
+  return raw;
 }
 
 // ---------- topics ----------
@@ -141,13 +159,13 @@ async function topics(
 ): Promise<void> {
   switch (action) {
     case "list": {
-      const parent = intFlag(flags, "parent");
+      const parent = idFlag(flags, "parent");
       const qs = parent !== undefined ? `?parent_topic_id=${parent}` : "";
       emit(await request("GET", `/topics${qs}`));
       return;
     }
     case "get": {
-      const id = positionalInt(rest, 0, "topic id");
+      const id = positionalId(rest, 0, "topic id");
       emit(await request("GET", `/topics/${id}`));
       return;
     }
@@ -155,7 +173,7 @@ async function topics(
       const body: Record<string, unknown> = {
         topic_name: requireFlag(flags, "name"),
       };
-      const parent = intFlag(flags, "parent");
+      const parent = idFlag(flags, "parent");
       if (parent !== undefined) body.parent_topic_id = parent;
       const color = strFlag(flags, "color");
       if (color) body.display_color = color;
@@ -163,7 +181,7 @@ async function topics(
       return;
     }
     case "update": {
-      const id = positionalInt(rest, 0, "topic id");
+      const id = positionalId(rest, 0, "topic id");
       const body = {
         topic_name: requireFlag(flags, "name"),
         display_color: requireFlag(flags, "color"),
@@ -192,16 +210,16 @@ async function tracks(
       const params = new URLSearchParams();
       const start = strFlag(flags, "start");
       const end = strFlag(flags, "end");
-      const topic = intFlag(flags, "topic");
+      const topic = idFlag(flags, "topic");
       if (start) params.set("start_date", start);
       if (end) params.set("end_date", end);
-      if (topic !== undefined) params.set("topic_id", String(topic));
+      if (topic !== undefined) params.set("topic_id", topic);
       const qs = params.toString();
       emit(await request("GET", `/daily-tracks${qs ? `?${qs}` : ""}`));
       return;
     }
     case "get": {
-      const id = positionalInt(rest, 0, "track id");
+      const id = positionalId(rest, 0, "track id");
       emit(await request("GET", `/daily-tracks/${id}`));
       return;
     }
@@ -211,7 +229,7 @@ async function tracks(
       })!;
       const body: Record<string, unknown> = {
         start_time: requireFlag(flags, "start-time"),
-        topic_id: intFlag(flags, "topic", { required: true })!,
+        topic_id: idFlag(flags, "topic", { required: true })!,
         duration_minutes: durationMinutes,
       };
       const comment = strFlag(flags, "comment");
@@ -220,12 +238,12 @@ async function tracks(
       return;
     }
     case "update": {
-      const id = positionalInt(rest, 0, "track id");
+      const id = positionalId(rest, 0, "track id");
       const durationMinutes = intFlag(flags, "duration-minutes", {
         required: true,
       })!;
       const body: Record<string, unknown> = {
-        topic_id: intFlag(flags, "topic", { required: true })!,
+        topic_id: idFlag(flags, "topic", { required: true })!,
         duration_minutes: durationMinutes,
       };
       const comment = strFlag(flags, "comment");
@@ -234,7 +252,7 @@ async function tracks(
       return;
     }
     case "delete": {
-      const id = positionalInt(rest, 0, "track id");
+      const id = positionalId(rest, 0, "track id");
       await request("DELETE", `/daily-tracks/${id}`);
       emit({ deleted: id });
       return;
@@ -265,7 +283,7 @@ async function apiKeys(
       return;
     }
     case "revoke": {
-      const id = positionalInt(rest, 0, "api key id");
+      const id = positionalId(rest, 0, "api key id");
       await request("DELETE", `/api-keys/${id}`);
       emit({ revoked: id });
       return;

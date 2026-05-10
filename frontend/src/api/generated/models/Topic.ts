@@ -4,9 +4,9 @@
 /* eslint-disable */
 export type Topic = {
     /**
-     * Unique identifier for the topic
+     * Unique identifier for the topic (decimal string of an int64; sent as a string to avoid JS Number precision loss)
      */
-    id: number;
+    id: string;
     /**
      * Name of the topic (e.g., 'playing', 'working')
      */
@@ -26,6 +26,6 @@ export type Topic = {
     /**
      * ID of the parent topic (null for root-level topics)
      */
-    parent_topic_id?: number;
+    parent_topic_id?: string;
 };
 

@@ -23,7 +23,7 @@ export function ApiKeysPage() {
   const [createdKey, setCreatedKey] = useState<CreateApiKeyResponse | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const [revokingId, setRevokingId] = useState<number | null>(null)
+  const [revokingId, setRevokingId] = useState<string | null>(null)
 
   async function loadKeys() {
     setLoading(true)

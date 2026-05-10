@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type CreateApiKeyResponse = {
-    id: number;
+    id: string;
     name: string;
     key_prefix: string;
     /**

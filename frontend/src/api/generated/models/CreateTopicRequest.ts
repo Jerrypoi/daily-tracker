@@ -10,7 +10,7 @@ export type CreateTopicRequest = {
     /**
      * Optional parent topic ID for hierarchical organization
      */
-    parent_topic_id?: number;
+    parent_topic_id?: string;
     /**
      * Optional topic display color in hex format (#RRGGBB). Defaults to #3b82f6
      */

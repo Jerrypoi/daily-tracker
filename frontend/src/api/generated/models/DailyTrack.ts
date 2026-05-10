@@ -4,9 +4,9 @@
 /* eslint-disable */
 export type DailyTrack = {
     /**
-     * Unique identifier for the daily track record
+     * Unique identifier for the daily track record (decimal string of an int64)
      */
-    id: number;
+    id: string;
     /**
      * Start time of the period (must be at :00 or :30)
      */
@@ -22,7 +22,7 @@ export type DailyTrack = {
     /**
      * ID of the associated topic
      */
-    topic_id: number;
+    topic_id: string;
     /**
      * Optional notes or comments for this time period
      */

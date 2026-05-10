@@ -22,7 +22,7 @@ export function TopicsPage() {
   const [parentTopicId, setParentTopicId] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [expandedTopicIds, setExpandedTopicIds] = useState<Set<number>>(new Set())
+  const [expandedTopicIds, setExpandedTopicIds] = useState<Set<string>>(new Set())
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
   const [editingName, setEditingName] = useState('')
   const [editingColor, setEditingColor] = useState(DEFAULT_TOPIC_COLOR)
@@ -75,7 +75,7 @@ export function TopicsPage() {
     setSaveError(null)
     setSaving(true)
 
-    const parsedParentTopicId = parentTopicId ? Number(parentTopicId) : undefined
+    const parsedParentTopicId = parentTopicId || undefined
     const parsedColor = /^#[0-9a-fA-F]{6}$/.test(topicColorRef.current)
       ? topicColorRef.current.toLowerCase()
       : DEFAULT_TOPIC_COLOR
@@ -152,7 +152,7 @@ export function TopicsPage() {
     setEditingColor(nextColor)
   }
 
-  function toggleExpanded(topicId: number) {
+  function toggleExpanded(topicId: string) {
     setExpandedTopicIds((current) => {
       const next = new Set(current)
       if (next.has(topicId)) {
@@ -311,8 +311,8 @@ export function TopicsPage() {
 }
 
 function buildTopicTree(topics: Topic[]): TopicTreeNode[] {
-  const byId = new Map<number, Topic>()
-  const childrenByParent = new Map<number | 'root', Topic[]>()
+  const byId = new Map<string, Topic>()
+  const childrenByParent = new Map<string | 'root', Topic[]>()
 
   for (const topic of topics) {
     byId.set(topic.id, topic)
@@ -321,7 +321,7 @@ function buildTopicTree(topics: Topic[]): TopicTreeNode[] {
   for (const topic of topics) {
     const parentId = topic.parent_topic_id
     const parentExists = parentId !== undefined && parentId !== null && byId.has(parentId)
-    const key = parentExists ? (parentId as number) : 'root'
+    const key = parentExists ? (parentId as string) : 'root'
     const bucket = childrenByParent.get(key) ?? []
     bucket.push(topic)
     childrenByParent.set(key, bucket)
@@ -330,7 +330,7 @@ function buildTopicTree(topics: Topic[]): TopicTreeNode[] {
   const sortTopics = (items: Topic[]) =>
     [...items].sort((a, b) => a.topic_name.localeCompare(b.topic_name))
 
-  function toNodes(parentKey: number | 'root', visited: Set<number>): TopicTreeNode[] {
+  function toNodes(parentKey: string | 'root', visited: Set<string>): TopicTreeNode[] {
     const children = sortTopics(childrenByParent.get(parentKey) ?? [])
     return children.map((topic) => {
       if (visited.has(topic.id)) {

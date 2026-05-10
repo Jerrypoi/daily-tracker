@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RegisterRequest {
@@ -18,8 +19,10 @@ pub struct TokenResponse {
     pub token: String,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Clone)]
 pub struct UserResponse {
+    #[serde_as(as = "DisplayFromStr")]
     pub id: i64,
     pub username: String,
     pub email: String,
@@ -86,7 +89,7 @@ mod tests {
             email_verified: false,
         };
         let json = serde_json::to_string(&resp).unwrap();
-        assert!(json.contains("\"id\":1234"));
+        assert!(json.contains("\"id\":\"1234\""));
         assert!(json.contains("\"email_verified\":false"));
     }
 

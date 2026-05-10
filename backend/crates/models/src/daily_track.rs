@@ -1,36 +1,47 @@
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct DailyTrack {
+    #[serde_as(as = "DisplayFromStr")]
     pub id: i64,
     pub start_time: chrono::DateTime<chrono::Utc>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    #[serde_as(as = "DisplayFromStr")]
     pub topic_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     pub duration_minutes: i32,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct CreateDailyTrackRequest {
     pub start_time: chrono::DateTime<chrono::Utc>,
+    #[serde_as(as = "DisplayFromStr")]
     pub topic_id: i64,
     pub comment: Option<String>,
     pub duration_minutes: i32,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct UpdateDailyTrackRequest {
+    #[serde_as(as = "DisplayFromStr")]
     pub topic_id: i64,
     pub comment: Option<String>,
     pub duration_minutes: i32,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct GetDailyTracksParams {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde(default)]
     pub topic_id: Option<i64>,
 }
 
@@ -51,10 +62,26 @@ mod tests {
             duration_minutes: 30,
         };
         let json = serde_json::to_string(&track).unwrap();
-        assert!(json.contains("\"id\":1"));
-        assert!(json.contains("\"topic_id\":42"));
+        assert!(json.contains("\"id\":\"1\""));
+        assert!(json.contains("\"topic_id\":\"42\""));
         assert!(json.contains("\"comment\":\"working on feature\""));
         assert!(json.contains("\"duration_minutes\":30"));
+    }
+
+    #[test]
+    fn daily_track_serializes_large_ids_without_precision_loss() {
+        let track = DailyTrack {
+            id: 311777577381486600,
+            start_time: Utc.with_ymd_and_hms(2026, 1, 15, 10, 0, 0).unwrap(),
+            created_at: Utc.with_ymd_and_hms(2026, 1, 15, 10, 0, 0).unwrap(),
+            updated_at: Utc.with_ymd_and_hms(2026, 1, 15, 10, 0, 0).unwrap(),
+            topic_id: 311777577381486601,
+            comment: None,
+            duration_minutes: 30,
+        };
+        let json = serde_json::to_string(&track).unwrap();
+        assert!(json.contains("\"id\":\"311777577381486600\""));
+        assert!(json.contains("\"topic_id\":\"311777577381486601\""));
     }
 
     #[test]
@@ -76,7 +103,7 @@ mod tests {
     #[test]
     fn daily_track_roundtrip() {
         let track = DailyTrack {
-            id: 55,
+            id: 311777577381486600,
             start_time: Utc.with_ymd_and_hms(2026, 3, 1, 14, 30, 0).unwrap(),
             created_at: Utc.with_ymd_and_hms(2026, 3, 1, 14, 30, 0).unwrap(),
             updated_at: Utc.with_ymd_and_hms(2026, 3, 1, 15, 0, 0).unwrap(),
@@ -86,7 +113,7 @@ mod tests {
         };
         let json = serde_json::to_string(&track).unwrap();
         let deser: DailyTrack = serde_json::from_str(&json).unwrap();
-        assert_eq!(deser.id, 55);
+        assert_eq!(deser.id, 311777577381486600);
         assert_eq!(deser.topic_id, 10);
         assert_eq!(deser.comment, Some("test".to_string()));
         assert_eq!(deser.duration_minutes, 90);
@@ -94,7 +121,7 @@ mod tests {
 
     #[test]
     fn create_daily_track_request_deserializes() {
-        let json = r#"{"start_time":"2026-01-15T10:00:00Z","topic_id":5,"comment":"hello","duration_minutes":60}"#;
+        let json = r#"{"start_time":"2026-01-15T10:00:00Z","topic_id":"5","comment":"hello","duration_minutes":60}"#;
         let req: CreateDailyTrackRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.topic_id, 5);
         assert_eq!(req.comment, Some("hello".to_string()));
@@ -103,7 +130,7 @@ mod tests {
 
     #[test]
     fn create_daily_track_request_without_comment() {
-        let json = r#"{"start_time":"2026-01-15T10:00:00Z","topic_id":5,"duration_minutes":30}"#;
+        let json = r#"{"start_time":"2026-01-15T10:00:00Z","topic_id":"5","duration_minutes":30}"#;
         let req: CreateDailyTrackRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.topic_id, 5);
         assert_eq!(req.comment, None);
@@ -112,7 +139,7 @@ mod tests {
 
     #[test]
     fn update_daily_track_request_deserializes() {
-        let json = r#"{"topic_id":3,"comment":"updated","duration_minutes":120}"#;
+        let json = r#"{"topic_id":"3","comment":"updated","duration_minutes":120}"#;
         let req: UpdateDailyTrackRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.topic_id, 3);
         assert_eq!(req.comment, Some("updated".to_string()));
@@ -121,7 +148,7 @@ mod tests {
 
     #[test]
     fn get_daily_tracks_params_full() {
-        let json = r#"{"start_date":"2026-01-01","end_date":"2026-01-31","topic_id":2}"#;
+        let json = r#"{"start_date":"2026-01-01","end_date":"2026-01-31","topic_id":"2"}"#;
         let params: GetDailyTracksParams = serde_json::from_str(json).unwrap();
         assert_eq!(params.start_date, Some("2026-01-01".to_string()));
         assert_eq!(params.end_date, Some("2026-01-31".to_string()));

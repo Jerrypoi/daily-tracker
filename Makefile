@@ -1,4 +1,4 @@
-.PHONY: gen_backend run_backend backend_migrate frontend_install frontend_dev frontend_build frontend_generate_api cli_help
+.PHONY: gen_backend run_backend backend_migrate frontend_install frontend_dev frontend_build frontend_generate_api cli_help dev
 
 gen_backend:
 	openapi-generator generate -i swagger.json -g rust-server -o backend
@@ -23,4 +23,11 @@ frontend_generate_api:
 
 cli_help:
 	npx --yes github:Jerrypoi/daily-tracker daily-tracker help
+
+# Run backend and frontend together. Ctrl-C stops both.
+dev:
+	@trap 'kill 0' INT TERM EXIT; \
+	(cd backend && cargo run) & \
+	npm --prefix frontend run dev & \
+	wait
 

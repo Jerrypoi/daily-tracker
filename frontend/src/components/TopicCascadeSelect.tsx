@@ -11,7 +11,7 @@ type TopicCascadeSelectProps = {
 }
 
 type LevelNode = {
-  parentId: number | 'root'
+  parentId: string | 'root'
   options: Topic[]
 }
 
@@ -27,10 +27,10 @@ export function TopicCascadeSelect({
   noneLabel = 'None',
 }: TopicCascadeSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [hoverPath, setHoverPath] = useState<number[]>([])
+  const [hoverPath, setHoverPath] = useState<string[]>([])
 
   const byId = useMemo(() => {
-    const map = new Map<number, Topic>()
+    const map = new Map<string, Topic>()
     for (const topic of topics) {
       map.set(topic.id, topic)
     }
@@ -38,7 +38,7 @@ export function TopicCascadeSelect({
   }, [topics])
 
   const childrenByParent = useMemo(() => {
-    const map = new Map<number | 'root', Topic[]>()
+    const map = new Map<string | 'root', Topic[]>()
     for (const topic of topics) {
       const parentId = topic.parent_topic_id
       const key =
@@ -55,9 +55,8 @@ export function TopicCascadeSelect({
     return map
   }, [topics, byId])
 
-  const selectedId = value ? Number(value) : undefined
-  const selectedTopic =
-    selectedId !== undefined && !Number.isNaN(selectedId) ? byId.get(selectedId) : undefined
+  const selectedId = value || undefined
+  const selectedTopic = selectedId !== undefined ? byId.get(selectedId) : undefined
 
   const selectedPath = useMemo(() => {
     if (!selectedTopic) {
@@ -65,12 +64,12 @@ export function TopicCascadeSelect({
     }
 
     const path: Topic[] = []
-    const visited = new Set<number>()
+    const visited = new Set<string>()
     let cursor: Topic | undefined = selectedTopic
     while (cursor && !visited.has(cursor.id)) {
       visited.add(cursor.id)
       path.unshift(cursor)
-      const parentId: number | undefined =
+      const parentId: string | undefined =
         cursor.parent_topic_id ?? undefined
       cursor =
         parentId !== undefined && parentId !== null ? byId.get(parentId) : undefined
@@ -86,7 +85,7 @@ export function TopicCascadeSelect({
 
   const levels = useMemo(() => {
     const rendered: LevelNode[] = []
-    let parent: number | 'root' = 'root'
+    let parent: string | 'root' = 'root'
     let depth = 0
 
     while (true) {
@@ -120,8 +119,8 @@ export function TopicCascadeSelect({
     setIsOpen(false)
   }
 
-  function selectTopic(id: number) {
-    onChange(String(id))
+  function selectTopic(id: string) {
+    onChange(id)
     closeMenu()
   }
 

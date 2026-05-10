@@ -10,7 +10,7 @@ export type CreateDailyTrackRequest = {
     /**
      * ID of the topic for this time period
      */
-    topic_id: number;
+    topic_id: string;
     /**
      * Optional notes or comments
      */

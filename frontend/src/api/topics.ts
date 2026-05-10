@@ -9,7 +9,7 @@ export type Topic = GeneratedTopic & {
 
 export type TopicInput = {
   topicName: string
-  parentTopicId?: number
+  parentTopicId?: string
   displayColor?: string
 }
 
@@ -45,7 +45,7 @@ function parseErrorBody(body: unknown): string {
   return 'Request failed'
 }
 
-export function listTopics(parentTopicId?: number) {
+export function listTopics(parentTopicId?: string) {
   return TopicService.getTopics(parentTopicId).then((topics) => topics.map(normalizeTopic))
 }
 
@@ -62,7 +62,7 @@ export async function createTopic(input: TopicInput) {
   }
 }
 
-export async function updateTopic(id: number, input: UpdateTopicInput) {
+export async function updateTopic(id: string, input: UpdateTopicInput) {
   try {
     const updated = await TopicService.updateTopic(id, {
       topic_name: input.topicName,
